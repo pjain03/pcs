@@ -1,0 +1,3 @@
+#!/bin/bash
+
+./src/server_exe $1

@@ -1,0 +1,4 @@
+#!/bin/bash
+
+gcc -g client.c -lnsl -o client_exe
+gcc -g server.c -lnsl -o server_exe
