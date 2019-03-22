@@ -10,6 +10,7 @@ Run the following commands:
 1. Run the following commands:
     * `chmod u+x server`
     * `chmod u+x client`
-2. Run the server using: `./server <port number>`
-3. Edit the `client` file in a text editor to include the address of the server
-   and then run the client using: `./client <port number>`
+2. Run the server using:
+    * `./server <port number>`
+3. Edit the `client` file to include the server's address. Then run the client using:
+    * `./client <port number>`
