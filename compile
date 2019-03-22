@@ -1,0 +1,4 @@
+#!/bin/bash
+
+gcc -g ./code/ap_utilities.h ./code/client.c -lnsl -o client_exe
+gcc -g ./code/ap_utilities.h ./code/server.c -lnsl -o server_exe

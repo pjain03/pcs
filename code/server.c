@@ -21,7 +21,7 @@
 
 #define NUM_QUEUED_CONNECTIONS 5
 #define BUFFER_SIZE 2048
-#define INTERVAL 5
+#define INTERVAL 60
 
 
 //
@@ -65,16 +65,15 @@ int main(int argc, char **argv) {
     tv.tv_usec = INTERVAL;
 
     // start waiting for clients to connect
-    // TODO: handle timeout, handle activity
     while (1) {
         FD_ZERO(&readfds);
         memcpy(&readfds, &master, sizeof(master));
         if ((n = select(max_fd + 1, &readfds, NULL, NULL, &tv)) == -1) {
             error_out("Select errored out!");
         } else if (n == 0) {
-            error_declare("Timeout!");
+            error_declare("TODO: Handle Timeout!");
         } else {
-            error_declare("Activity!");
+            error_declare("TODO: Handle Activity!");
         }
     }
 

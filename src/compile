@@ -1,4 +1,0 @@
-#!/bin/bash
-
-gcc -g ap_utilities.h client.c -lnsl -o client_exe
-gcc -g ap_utilities.h server.c -lnsl -o server_exe
