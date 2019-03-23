@@ -59,37 +59,3 @@ int main(int argc, char **argv) {
 }
 
 
-int connect_to_server(char *hostname, int port_num) {
-    /* Setup the client and return its information */
-
-    int client;
-    struct sockaddr_in serveraddr;
-    struct hostent *server;
-
-    // socket: create the socket
-    if ((client = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        error_out("Couldn't open socket!");
-    }
-
-    // gethostbyname: get the server's DNS entry
-    if ((server = gethostbyname(hostname)) == NULL) {
-        error_out("Couldn't get host!");
-    }
-
-    // build the server's Internet address
-    bzero((char *) &serveraddr, sizeof(serveraddr));
-    serveraddr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, 
-	  (char *)&serveraddr.sin_addr.s_addr, server->h_length);
-    serveraddr.sin_port = htons(port_num);
-
-    // connect: create a connection with the server
-    if (connect(client, (const struct sockaddr*) &serveraddr,
-                sizeof(serveraddr)) < 0) {
-        error_out("Couldn't connect to the server!");
-    }
-    
-    return client;
-}
-
-

@@ -12,23 +12,15 @@
 // Includes and Definitions
 //
 #include <time.h>
+#include <netdb.h> 
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-
-// Message Types
-unsigned short HELLO = 1;
-unsigned short HELLO_ACK = 2;
-unsigned short LIST_REQUEST = 3;
-unsigned short CLIENT_LIST = 4;
-unsigned short CHAT = 5;
-unsigned short EXIT = 6;
-unsigned short ERR_CAP = 7;
-unsigned short ERR_CD = 8;
 
 
 //
@@ -41,5 +33,6 @@ unsigned short ERR_CD = 8;
 //
 void error_out(const char *msg);
 void error_declare(const char *msg);
+int connect_to_server(char *hostname, int port_num);
 
 

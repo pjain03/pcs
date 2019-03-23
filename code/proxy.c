@@ -44,23 +44,23 @@ int main(int argc, char **argv) {
     // we require a port to listen on
     if (argc < 2) {
         error_out("Incorrect number of arguments!\n"
-                  "Usage: ./server <port number>");
+                  "Usage: ./proxy <port number>");
     }
 
     // important variables
-    int port_num, server, max_fd, n;
+    int port_num, proxy, max_fd, n;
     char buffer[BUFFER_SIZE];
     fd_set master, readfds;
     struct timeval tv;
 
     // setup server
     port_num = atoi(argv[1]);
-    server = setup_server(port_num);
+    proxy = setup_server(port_num);
 
     // setup select
     FD_ZERO(&master);
-    FD_SET(server, &master);
-    max_fd = server;
+    FD_SET(proxy, &master);
+    max_fd = proxy;
     tv.tv_sec = INTERVAL;
     tv.tv_usec = INTERVAL;
 

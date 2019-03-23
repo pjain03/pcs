@@ -1,0 +1,3 @@
+#!/bin/bash
+
+./proxy_exe $1
