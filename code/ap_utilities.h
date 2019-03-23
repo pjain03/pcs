@@ -24,6 +24,15 @@
 #include <netinet/in.h>
 
 #define BUFFER_SIZE 2048
+#define CONNECT_RQ "CONNECT"
+#define GET_RQ "GET"
+#define EMPTY "\0"
+#define CRLF2 "\r\n\r\n"
+#define CRLF "\r\n"
+#define CRCR "\r\r"
+#define LFLF "\n\n"
+#define CR "\r"
+#define LF "\n"
 
 
 //
@@ -43,11 +52,6 @@ typedef struct HTTPHeader {
     struct HTTPHeader *next;
 } HTTPHeader;
 
-typedef struct HTTPHeaders_LL {
-    /* HTTP Headers linked list will be managed using this structure */
-    HTTPHeader *head;
-} HTTPHeaders_LL;
-
 typedef struct HTTPCommunication {
     /* HTTP Request will be the parsed form of the raw request,
      * HTTP Response will be the message we send to the client,
@@ -55,7 +59,7 @@ typedef struct HTTPCommunication {
     HTTPMethod method;
     char *url;
     char *version;
-    HTTPHeaders_LL *ll;
+    HTTPHeader *hdrs;
     char *body;
 } HTTPCommunication;
 
@@ -66,12 +70,13 @@ typedef struct HTTPCommunication {
 void error_out(const char *msg);
 void error_declare(const char *msg);
 
-int connect_to_server(char *hostname, int port_num);  // TODO
-char *read_all(int sockfd);  // TODO
+int connect_to_server(char *hostname, int port_num);
+char *read_all(int sockfd);
+char *read_hdr(int sockfd);
 
-void free_hdr(HTTPHeader *hdr);  // TODO
-void free_comm(HTTPCommunication *comm);  // TODO
-void display_comm(HTTPCommunication *comm);  // TODO
-HTTPCommunication *parse_request(char *raw);  // TODO
+void free_hdr(HTTPHeader *hdr);
+void free_comm(HTTPCommunication *comm);
+void display_comm(HTTPCommunication *comm);
+HTTPCommunication *parse_request(char *raw);
 
 

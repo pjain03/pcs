@@ -149,7 +149,13 @@ int handle_new_connection(int proxy) {
 
     if ((client = accept_client(proxy)) >= 0) {
         printf("New connection, FD: %d!\n", client);
-        raw_request = read_all(client);
+        if ((raw_request = read_hdr(client)) != NULL) {
+            printf("%s\n", raw_request);
+            HTTPCommunication *request = parse_request(raw_request);
+            display_comm(request);
+            free(raw_request);
+            free(request);
+        }
     }
 
     return client;
