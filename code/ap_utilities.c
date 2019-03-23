@@ -65,3 +65,38 @@ int connect_to_server(char *hostname, int port_num) {
 }
 
 
+char *read_all(int sockfd) {
+    /* Read until failure and return top of buffer */
+
+    // setup
+    int readlen = 0,            // length of raw
+        last_read = 0,          // length of the last read into buffer
+        buf_size = BUFFER_SIZE; // buffer size
+    char *buffer, *raw;
+    if ((buffer = (char *) malloc(buf_size)) == NULL) {
+        error_out("Couldn't malloc!");
+    }
+    if ((raw = (char *) malloc(readlen)) == NULL) {
+        error_out("Couldn't malloc raw!");
+    }
+
+    // read until we cannot read anymore (empty or failed read)
+    do {
+        last_read = read(sockfd, buffer, buf_size);
+        if (last_read > 0) {
+            raw = realloc(raw, readlen + last_read);
+            memcpy(raw + readlen, buffer, last_read);
+            readlen += last_read;
+        }
+        bzero(buffer, buf_size);
+    } while (last_read > 0);
+    printf("Read %d bytes\n", readlen);
+    printf("%s\n", raw);
+
+    // cleanup
+    free(buffer);
+
+    return raw;
+}
+
+
