@@ -23,6 +23,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+#define DEFAULT_HTTP_PORT 80
 #define BUFFER_SIZE 2048
 #define CONNECT_RQ "CONNECT"
 #define GET_RQ "GET"
@@ -57,8 +58,12 @@ typedef struct HTTPCommunication {
      * HTTP Response will be the message we send to the client,
      * - Handling responses thus allows us to add/modify headers easily */
     HTTPMethod method;
+    int port;
+    char *host;
     char *url;
     char *version;
+    char *status;
+    char *status_desc;
     HTTPHeader *hdrs;
     char *body;
 } HTTPCommunication;
@@ -70,13 +75,16 @@ typedef struct HTTPCommunication {
 void error_out(const char *msg);
 void error_declare(const char *msg);
 
+int write_to_socket(int sockfd, char *buffer);
 int connect_to_server(char *hostname, int port_num);
 char *read_all(int sockfd);
 char *read_hdr(int sockfd);
 
 void free_hdr(HTTPHeader *hdr);
 void free_comm(HTTPCommunication *comm);
-void display_comm(HTTPCommunication *comm);
+void display_comm(HTTPCommunication *comm, int is_req);
+int parse_headers(char *raw, HTTPCommunication *comm);
 HTTPCommunication *parse_request(char *raw);
+HTTPCommunication *parse_response(char *raw);
 
 

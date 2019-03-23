@@ -18,3 +18,4 @@ Run the following commands:
     * This includes handling one client completely (forward request to the server, forward server response to the client) before moving to another. In the future, we can handle clients by sending their requests to the server and returning to handle other clients while the server responds. When the server responds, we can forward its request to the client
 3. Do we even need the client? Maybe we can use it to run a variety of different tests? Or maybe run the test script on a variety of different machines...?
 4. NOTE: in our implementation we assume that no header will be formatted such that the lines in the header end with a LF followed by a CR. Lines may end with LF or CR or CRLF but not LFCR
+5. Parse and store body of message separately (using Content-Length rather than strlen)

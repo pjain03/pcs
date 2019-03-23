@@ -75,7 +75,6 @@ int main(int argc, char **argv) {
             break;
         } else {
             handle_activity(&master, &readfds, &max_fd, proxy, buffer);
-            break;
         }
     }
 
@@ -151,17 +150,29 @@ void handle_activity(fd_set *master, fd_set *readfds, int *max_fd, int proxy,
 int handle_new_connection(int proxy) {
     /* Handle new clients */
 
-    int client, readlen = 0;
-    char *raw_request;
+    int client, server, readlen = 0;
+    char *raw_request, *raw_response;
+    HTTPCommunication *request, *response;
 
     if ((client = accept_client(proxy)) >= 0) {
-        printf("New connection, FD: %d!\n", client);
         if ((raw_request = read_hdr(client)) != NULL) {
-            printf("%s\n", raw_request);
-            HTTPCommunication *request = parse_request(raw_request);
-            display_comm(request);
+
+            request = parse_request(raw_request);
+            display_comm(request, 1);
+            server = connect_to_server(request->host, request->port);
+            if (write_to_socket(server, raw_request) >= 0) {
+                if ((raw_response = read_all(server)) != NULL) {
+                    response = parse_response(raw_response);
+                    display_comm(response, 0);
+                    write_to_socket(client, raw_response);
+                }
+            }
+
+            // cleanup
             free(raw_request);
             free_comm(request);
+            free(raw_response);
+            free_comm(response);
         }
     }
 
