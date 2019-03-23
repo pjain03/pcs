@@ -1,4 +1,0 @@
-#!/bin/bash
-
-gcc -g ./code/ap_utilities.h ./code/client.c -lnsl -o client_exe
-gcc -g ./code/ap_utilities.h ./code/proxy.c -lnsl -o proxy_exe

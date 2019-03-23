@@ -3,4 +3,4 @@
 # Edit the below line to reflect the server's address
 SERVER_ADDRESS='comp112-02.cs.tufts.edu'
 
-./client_exe $SERVER_ADDRESS $1
+./scripts/exe_client $SERVER_ADDRESS $1
