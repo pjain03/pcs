@@ -75,10 +75,17 @@ int main(int argc, char **argv) {
             break;
         } else {
             handle_activity(&master, &readfds, &max_fd, proxy, buffer);
+            break;
         }
     }
 
     // cleanup and exit
+    for (int i = 3; i < max_fd; i++) {
+        FD_CLR(i, &master);
+    }
+    FD_ZERO(&readfds);
+    FD_ZERO(&master);
+    close(proxy);
     exit(EXIT_SUCCESS);
 }
 
@@ -154,7 +161,7 @@ int handle_new_connection(int proxy) {
             HTTPCommunication *request = parse_request(raw_request);
             display_comm(request);
             free(raw_request);
-            free(request);
+            free_comm(request);
         }
     }
 

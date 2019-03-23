@@ -94,6 +94,9 @@ char *read_all(int sockfd) {
             free(raw);
         }
         raw = NULL;
+    } else {
+        raw = realloc(raw, readlen + 1);
+        raw[readlen] = '\0';
     }
 
     // cleanup
@@ -134,9 +137,9 @@ char *read_hdr(int sockfd) {
             readlen += last_read;
         }
         if (readlen >= sizeof(CRLF2)) {
-            hdr_togo = strcmp(raw + readlen - strlen(CRLF2), CRLF2) &&
-                       strcmp(raw + readlen - strlen(CRCR), CRCR) &&
-                       strcmp(raw + readlen - strlen(LFLF), LFLF);
+            hdr_togo = strncmp(raw + readlen - strlen(CRLF2), CRLF2, strlen(CRLF2)) &&
+                       strncmp(raw + readlen - strlen(CRCR), CRCR, strlen(CRCR)) &&
+                       strncmp(raw + readlen - strlen(LFLF), LFLF, strlen(LFLF));
         }
         bzero(buffer, buf_size);
     } while (last_read > 0 && hdr_togo);
@@ -147,6 +150,9 @@ char *read_hdr(int sockfd) {
             free(raw);
         }
         raw = NULL;
+    } else {
+        raw = realloc(raw, readlen + 1);
+        raw[readlen] = '\0';
     }
 
     // cleanup
