@@ -263,8 +263,8 @@ void display_request(HTTPRequest *request) {
             printf("%32s: %s\n", hdr->name, hdr->value);
         }
         printf("Message Body:");
-        if (strlen(request->body)) {
-            printf("\n%s\n\n", request->body);
+        if (request->body_length) {
+            printf("\n%.*s\n\n", request->body_length, request->body);
         } else {
             printf(" EMPTY\n\n");
         }
@@ -286,8 +286,8 @@ void display_response(HTTPResponse *response) {
             printf("%32s: %s\n", hdr->name, hdr->value);
         }
         printf("Message Body:");
-        if (strlen(response->body)) {
-            printf("\n%s\n\n", response->body);
+        if (response->body_length) {
+            printf("\n%.*s\n\n", response->body_length, response->body);
         } else {
             printf(" EMPTY\n\n");
         }
@@ -453,13 +453,12 @@ HTTPRequest *parse_request(int length, char *raw) {
     }
 
     // set the body
-    size_t body_length = length - offset;
-    if ((request->body = (char *) malloc(body_length + 1)) == NULL) {
+    request->body_length = length - offset;
+    if ((request->body = (char *) malloc(request->body_length)) == NULL) {
         free_request(request);
         error_out("Couldn't malloc!");
     }
-    memcpy(request->body, raw, body_length);
-    request->body[body_length] = '\0';
+    memcpy(request->body, raw, request->body_length);
 
     return request;
 }
@@ -528,24 +527,23 @@ HTTPResponse *parse_response(int length, char *raw) {
     }
 
     // set the body
-    size_t body_length = length - offset;
-    if ((response->body = (char *) malloc(body_length + 1)) == NULL) {
+    response->body_length = length - offset;
+    if ((response->body = (char *) malloc(response->body_length)) == NULL) {
         free_response(response);
         error_out("Couldn't malloc!");
     }
-    memcpy(response->body, raw, body_length);
-    response->body[body_length] = '\0';
+    memcpy(response->body, raw, response->body_length);
 
     return response;
 }
 
 
-int write_to_socket(int sockfd, char *buffer) {
+int write_to_socket(int sockfd, char *buffer, int buffer_length) {
     /* Write to the given socket and return the length of the written data */
 
     int writelen = 0;
 
-    if ((writelen = write(sockfd, buffer, strlen(buffer))) < 0) {
+    if ((writelen = write(sockfd, buffer, buffer_length)) < 0) {
         error_declare("Couldn't write to the socket!");
     }
 

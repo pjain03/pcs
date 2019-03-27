@@ -150,7 +150,8 @@ void handle_activity(fd_set *master, fd_set *readfds, int *max_fd, int proxy,
 int handle_new_connection(int proxy) {
     /* Handle new clients */
 
-    int client, server, request_length = 0, response_length = 0;
+    int client, server, request_length = 0, response_length = 0,
+        write_length = 0;
     char *raw_request = NULL, *raw_response = NULL;
     HTTPRequest *request;
     HTTPResponse *response;
@@ -163,11 +164,13 @@ int handle_new_connection(int proxy) {
 
             // get the response from the server and send it back to the client
             server = connect_to_server(request->host, request->port);
-            if (write_to_socket(server, raw_request) >= 0) {
+            if ((write_length = write_to_socket(server, raw_request,
+                                                request_length)) >= 0) {
                 if ((response_length = read_all(server, &raw_response)) != -1) {
                     response = parse_response(response_length, raw_response);
                     display_response(response);
-                    write_to_socket(client, raw_response);
+                    write_length = write_to_socket(client, raw_response,
+                                                   response_length);
                 }
             }
 

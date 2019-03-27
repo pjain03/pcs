@@ -74,6 +74,7 @@ typedef struct HTTPResponse {
     char *status;
     char *status_desc;
     HTTPHeader *hdrs;
+    int body_length;
     char *body;
 } HTTPResponse;
 
@@ -84,7 +85,7 @@ typedef struct HTTPResponse {
 void error_out(const char *msg);
 void error_declare(const char *msg);
 
-int write_to_socket(int sockfd, char *buffer);
+int write_to_socket(int sockfd, char *buffer, int buffer_length);
 int connect_to_server(char *hostname, int port_num);
 int read_all(int sockfd, char **raw);
 int read_hdr(int sockfd, char **raw);
