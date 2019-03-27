@@ -152,27 +152,30 @@ int handle_new_connection(int proxy) {
 
     int client, server, readlen = 0;
     char *raw_request, *raw_response;
-    HTTPCommunication *request, *response;
+    HTTPRequest *request;
+    HTTPResponse *response;
 
+    // connect to the client and receive its request
     if ((client = accept_client(proxy)) >= 0) {
         if ((raw_request = read_hdr(client)) != NULL) {
-
             request = parse_request(raw_request);
-            display_comm(request, 1);
+            display_request(request);
+
+            // get the response from the server and send it back to the client
             server = connect_to_server(request->host, request->port);
             if (write_to_socket(server, raw_request) >= 0) {
                 if ((raw_response = read_all(server)) != NULL) {
                     response = parse_response(raw_response);
-                    display_comm(response, 0);
+                    display_response(response);
                     write_to_socket(client, raw_response);
                 }
             }
 
             // cleanup
             free(raw_request);
-            free_comm(request);
+            free_request(request);
             free(raw_response);
-            free_comm(response);
+            free_response(response);
         }
     }
 

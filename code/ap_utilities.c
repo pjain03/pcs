@@ -181,65 +181,84 @@ void free_hdr(HTTPHeader *hdr) {
 }
 
 
-void free_comm(HTTPCommunication *comm) {
-    /* Frees the HTTPCommunication structure */
+void free_request(HTTPRequest *request) {
+    /* Frees the HTTPRequest structure */
 
-    if (comm) {
-        if (comm->host) {
-            free(comm->host);
-            comm->host = NULL;
+    if (request) {
+        if (request->host) {
+            free(request->host);
+            request->host = NULL;
         }
-        if (comm->url) {
-            free(comm->url);
-            comm->url = NULL;
+        if (request->url) {
+            free(request->url);
+            request->url = NULL;
         }
-        if (comm->version) {
-            free(comm->version);
-            comm->version = NULL;
+        if (request->version) {
+            free(request->version);
+            request->version = NULL;
         }
-        if (comm->status) {
-            free(comm->status);
-            comm->status = NULL;
+        if (request->hdrs) {
+            free_hdr(request->hdrs);
+            request->hdrs = NULL;
         }
-        if (comm->status_desc) {
-            free(comm->status_desc);
-            comm->status_desc = NULL;
+        if (request->body) {
+            free(request->body);
+            request->body = NULL;
         }
-        if (comm->hdrs) {
-            free_hdr(comm->hdrs);
-            comm->version = NULL;
-        }
-        if (comm->body) {
-            free(comm->body);
-            comm->version = NULL;
-        }
-        free(comm);
-        comm = NULL;
+        free(request);
+        request = NULL;
     }
 }
 
 
-void display_comm(HTTPCommunication *comm, int is_req) {
-    /* Displays the HTTPCommunication structure */
+void free_response(HTTPResponse *response) {
+    /* Frees the HTTPResponse structure */
 
-    if (comm) {
-        printf("\nHTTPCommunication:\n-----------------\n");
-        if (is_req) {
-            printf("Method: %d\n", comm->method);
-            printf("Requested Host: %s\n", comm->host);
-            printf("Requested Port: %d\n", comm->port);
-            printf("%s %s\n", comm->url, comm->version);
-        } else {
-            printf("%s %s %s\n", comm->version, comm->status, comm->status_desc);
+    if (response) {
+        if (response->status) {
+            free(response->status);
+            response->status = NULL;
         }
+        if (response->status_desc) {
+            free(response->status_desc);
+            response->status_desc = NULL;
+        }
+        if (response->version) {
+            free(response->version);
+            response->version = NULL;
+        }
+        if (response->hdrs) {
+            free_hdr(response->hdrs);
+            response->hdrs = NULL;
+        }
+        if (response->body) {
+            free(response->body);
+            response->body = NULL;
+        }
+        free(response);
+        response = NULL;
+    }
+}
+
+
+void display_request(HTTPRequest *request) {
+    /* Displays the HTTPRequest structure */
+
+    if (request) {
+        printf("\nHTTP Request:\n------------\n");
+        printf("Method: %d\n", request->method);
+        printf("URL: %s\n", request->url);
+        printf("Version: %s\n", request->version);
+        printf("Host: %s\n", request->host);
+        printf("Port: %d\n", request->port);
         printf("Headers:\n");
         HTTPHeader *hdr;
-        for (hdr = comm->hdrs; hdr; hdr = hdr->next) {
+        for (hdr = request->hdrs; hdr; hdr = hdr->next) {
             printf("%32s: %s\n", hdr->name, hdr->value);
         }
         printf("Message Body:");
-        if (strlen(comm->body)) {
-            printf("\n%s\n\n", comm->body);
+        if (strlen(request->body)) {
+            printf("\n%s\n\n", request->body);
         } else {
             printf(" EMPTY\n\n");
         }
@@ -247,93 +266,111 @@ void display_comm(HTTPCommunication *comm, int is_req) {
 }
 
 
-int parse_headers(char *raw, HTTPCommunication *comm) {
+void display_response(HTTPResponse *response) {
+    /* Displays the HTTPResponse structure */
+
+    if (response) {
+        printf("\nHTTP Response:\n-------------\n");
+        printf("Version: %s\n", response->version);
+        printf("Status: %s\n", response->status);
+        printf("Status Description: %s\n", response->status_desc);
+        printf("Headers:\n");
+        HTTPHeader *hdr;
+        for (hdr = response->hdrs; hdr; hdr = hdr->next) {
+            printf("%32s: %s\n", hdr->name, hdr->value);
+        }
+        printf("Message Body:");
+        if (strlen(response->body)) {
+            printf("\n%s\n\n", response->body);
+        } else {
+            printf(" EMPTY\n\n");
+        }
+    }
+}
+
+
+char *get_hdr_value(HTTPHeader *hdrs, const char *name) {
+    /* Get the value for the name from the hdrs */
+
+    char *value = NULL;
+
+    for (HTTPHeader *hdr = hdrs; hdr; hdr = hdr->next) {
+        size_t value_length = strcspn(hdr->value, "\0");
+        if (strcmp(hdr->name, name) == 0) {
+            int value_length = strcspn(hdr->value, EMPTY);
+            if ((value = (char *) malloc(value_length + 1)) == NULL) {
+                error_out("Couldn't malloc!");
+            }
+            memcpy(value, hdr->value, value_length);
+            value[value_length] = '\0';
+        }
+    }
+
+    return value;
+}
+
+
+HTTPHeader *parse_headers(char **raw_ptr) {
     /* Parses the headers from the raw data and returns the length of the data
      * parsed from the passed in raw parameter */
 
-    int offset = 0;
+    char *raw = *raw_ptr;
     HTTPHeader *hdr = NULL, *lst = NULL;
 
     while (strncmp(raw, CRLF, strlen(CRLF)) != 0) {
         lst = hdr;
         if ((hdr = (HTTPHeader *) malloc(sizeof(HTTPHeader))) == NULL) {
-            free_comm(comm);
             error_out("Couldn't malloc!");
         }
 
         // header field name
         size_t name_length = strcspn(raw, ":");
         if ((hdr->name = (char *) malloc(name_length + 1)) == NULL) {
-            free_comm(comm);
             error_out("Couldn't malloc!");
         }
         memcpy(hdr->name, raw, name_length);
         hdr->name[name_length] = '\0';
         raw += name_length + 1;
-        offset += name_length + 1;
         while (*raw == ' ') {
             raw++;
-            offset++;
         }
 
         // header field value
         size_t value_length = strcspn(raw, CRLF);
         if ((hdr->value = (char *) malloc(value_length + 1)) == NULL) {
-            free_comm(comm);
             error_out("Couldn't malloc!");
         }
         memcpy(hdr->value, raw, value_length);
         hdr->value[value_length] = '\0';
         raw += value_length;
-        offset += value_length;
         if (strncmp(raw, CR, strlen(CR)) == 0) {
             raw += strlen(CR);
-            offset += strlen(CR);
         }
         if (strncmp(raw, LF, strlen(LF)) == 0) {
             raw += strlen(LF);
-            offset += strlen(LF);
         }
 
-        // extract port if hdr->name = "Host"
-        if (strcmp(hdr->name, "Host") == 0) {
-            size_t host_length = strcspn(hdr->value, ":");
-            if (host_length != value_length) {
-                comm->port = atoi(hdr->value + host_length + 1);
-            }
-            if ((comm->host = (char *) malloc(host_length + 1)) == NULL) {
-                free_comm(comm);
-                error_out("Couldn't malloc!");
-            }
-            memcpy(comm->host, hdr->value, host_length);
-            comm->host[host_length] = '\0';
-        }
-
+        // add to the header
         hdr->next = lst;
     }
 
-    // set the headers
-    comm->hdrs = hdr;
+    // move the buffer
+    *raw_ptr = raw;
 
-    return offset;
+    return hdr;
 }
 
 
-HTTPCommunication *parse_request(char *raw) {
+HTTPRequest *parse_request(char *raw) {
     /* Parses and returns the raw data as a HTTPCommunication structure */
 
-    HTTPCommunication *request;
-    if ((request = (HTTPCommunication *) malloc(sizeof(HTTPCommunication)))
-            == NULL) {
+    char *host, *content_length;
+    HTTPRequest *request;
+    if ((request = (HTTPRequest *) malloc(sizeof(HTTPRequest))) == NULL) {
         error_out("Couldn't malloc!");
     }
 
-    // request doesn't use status or status_desc
-    request->status = NULL;
-    request->status_desc = NULL;
-
-    // set the method
-    // NOTE: add HTTP methods here! Eg. CONNECT
+    // set the method, add new methods here (Eg. CONNECT)
     size_t method_length = strcspn(raw, " ");
     if (strncmp(raw, GET_RQ, strlen(GET_RQ)) == 0) {
         request->method = GET;
@@ -345,21 +382,17 @@ HTTPCommunication *parse_request(char *raw) {
     // set the URI
     size_t uri_length = strcspn(raw, " ");
     if ((request->url = (char *) malloc(uri_length + 1)) == NULL) {
-        free_comm(request);
+        free_request(request);
         error_out("Couldn't malloc!");
     }
     memcpy(request->url, raw, uri_length);
     request->url[uri_length] = '\0';
     raw += uri_length + 1;
 
-    // set the default port (will be changed on seeing a Host header later)
-    request->host = request->url;
-    request->port = DEFAULT_HTTP_PORT;
-
     // set the HTTP-Version
     size_t ver_length = strcspn(raw, CRLF);
     if ((request->version = (char *) malloc(ver_length + 1)) == NULL) {
-        free_comm(request);
+        free_request(request);
         error_out("Couldn't malloc!");
     }
     memcpy(request->version, raw, ver_length);
@@ -373,12 +406,39 @@ HTTPCommunication *parse_request(char *raw) {
     }
 
     // set the hdrs
-    raw += parse_headers(raw, request) + strlen(CRLF);
+    request->hdrs = parse_headers(&raw);
+    if (strncmp(raw, CR, strlen(CR)) == 0) {
+        raw += strlen(CR);
+    }
+    if (strncmp(raw, LF, strlen(LF)) == 0) {
+        raw += strlen(LF);
+    }
+
+    // extract host and port if there is "Host" header otherwise keep defaults
+    request->host = request->url;
+    request->port = DEFAULT_HTTP_PORT;
+    if ((host = get_hdr_value(request->hdrs, HOST)) != NULL) {
+        size_t value_length = strcspn(host, EMPTY),
+               host_length = strcspn(host, COLON);
+        if (value_length != host_length) {
+            request->port = atoi(host + host_length + 1);
+        }
+        if ((request->host = (char *) malloc(host_length + 1)) == NULL) {
+            free_request(request);
+            error_out("Couldn't malloc!");
+        }
+        memcpy(request->host, host, host_length);
+        request->host[host_length] = '\0';
+    }
 
     // set the body
-    size_t body_length = strlen(raw);
+    size_t body_length = 0;
+    if ((content_length = get_hdr_value(request->hdrs, CONTENT_LENGTH))
+            != NULL) {
+        body_length = atoi(content_length);
+    }
     if ((request->body = (char *) malloc(body_length + 1)) == NULL) {
-        free_comm(request);
+        free_request(request);
         error_out("Couldn't malloc!");
     }
     memcpy(request->body, raw, body_length);
@@ -388,25 +448,19 @@ HTTPCommunication *parse_request(char *raw) {
 }
 
 
-HTTPCommunication *parse_response(char *raw) {
+HTTPResponse *parse_response(char *raw) {
     /* Parses and returns the raw data as an HTTPCommunication structure */
 
-    HTTPCommunication *response;
-    if ((response = (HTTPCommunication *) malloc(sizeof(HTTPCommunication)))
-            == NULL) {
+    char *content_length;
+    HTTPResponse *response;
+    if ((response = (HTTPResponse *) malloc(sizeof(HTTPResponse))) == NULL) {
         error_out("Couldn't malloc!");
     }
-
-    // responses don't use port, host, or url
-    response->method = UNSUPPORTED;
-    response->port = -1;
-    response->host = NULL;
-    response->url = NULL;
 
     // set the HTTP-Version
     size_t ver_length = strcspn(raw, " ");
     if ((response->version = (char *) malloc(ver_length + 1)) == NULL) {
-        free_comm(response);
+        free_response(response);
         error_out("Couldn't malloc!");
     }
     memcpy(response->version, raw, ver_length);
@@ -416,31 +470,47 @@ HTTPCommunication *parse_response(char *raw) {
     // set the status
     size_t status_length = strcspn(raw, " ");
     if ((response->status = (char *) malloc(status_length + 1)) == NULL) {
-        free_comm(response);
+        free_response(response);
         error_out("Couldn't malloc!");
     }
     memcpy(response->status, raw, status_length);
     response->status[status_length] = '\0';
     raw += status_length + 1;
 
-    // set the description
+    // set the status description
     size_t status_desc_length = strcspn(raw, CRLF);
     if ((response->status_desc = (char *) malloc(status_desc_length + 1))
             == NULL) {
-        free_comm(response);
+        free_response(response);
         error_out("Couldn't malloc!");
     }
     memcpy(response->status_desc, raw, status_desc_length);
     response->status_desc[status_desc_length] = '\0';
-    raw += status_desc_length + 1;
+    raw += status_desc_length;
+    if (strncmp(raw, CR, strlen(CR)) == 0) {
+        raw += strlen(CR);
+    }
+    if (strncmp(raw, LF, strlen(LF)) == 0) {
+        raw += strlen(LF);
+    }
 
     // set the hdrs
-    raw += parse_headers(raw, response) + strlen(CRLF);
+    response->hdrs = parse_headers(&raw);
+    if (strncmp(raw, CR, strlen(CR)) == 0) {
+        raw += strlen(CR);
+    }
+    if (strncmp(raw, LF, strlen(LF)) == 0) {
+        raw += strlen(LF);
+    }
 
     // set the body
-    size_t body_length = strlen(raw);
+    size_t body_length = 0;
+    if ((content_length = get_hdr_value(response->hdrs, CONTENT_LENGTH))
+            != NULL) {
+        body_length = atoi(content_length);
+    }
     if ((response->body = (char *) malloc(body_length + 1)) == NULL) {
-        free_comm(response);
+        free_response(response);
         error_out("Couldn't malloc!");
     }
     memcpy(response->body, raw, body_length);
