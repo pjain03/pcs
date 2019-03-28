@@ -9,7 +9,7 @@
 //
 // Includes and Definitions
 //
-#include "ap_utilities.c"
+#include "ap_utilities.h"
 
 #define NUM_QUEUED_CONNECTIONS 5
 #define TIMEOUT_INTERVAL 60
@@ -150,24 +150,27 @@ void handle_activity(fd_set *master, fd_set *readfds, int *max_fd, int proxy,
 int handle_new_connection(int proxy) {
     /* Handle new clients */
 
-    int client, server, readlen = 0;
-    char *raw_request, *raw_response;
+    int client, server, request_length = 0, response_length = 0,
+        write_length = 0;
+    char *raw_request = NULL, *raw_response = NULL;
     HTTPRequest *request;
     HTTPResponse *response;
 
     // connect to the client and receive its request
     if ((client = accept_client(proxy)) >= 0) {
-        if ((raw_request = read_hdr(client)) != NULL) {
-            request = parse_request(raw_request);
+        if ((request_length = read_hdr(client, &raw_request)) != -1) {
+            request = parse_request(request_length, raw_request);
             display_request(request);
 
             // get the response from the server and send it back to the client
             server = connect_to_server(request->host, request->port);
-            if (write_to_socket(server, raw_request) >= 0) {
-                if ((raw_response = read_all(server)) != NULL) {
-                    response = parse_response(raw_response);
+            if ((write_length = write_to_socket(server, raw_request,
+                                                request_length)) >= 0) {
+                if ((response_length = read_all(server, &raw_response)) != -1) {
+                    response = parse_response(response_length, raw_response);
                     display_response(response);
-                    write_to_socket(client, raw_response);
+                    write_length = write_to_socket(client, raw_response,
+                                                   response_length);
                 }
             }
 
