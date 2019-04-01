@@ -362,8 +362,12 @@ HTTPHeader *parse_headers(int *offset, char **raw_ptr) {
             length += strlen(LF);
         }
 
-        // add to the header
-        hdr->next = lst;
+        // add to the header if its not the age header
+        if (strcmp(hdr->name, AGE)) {
+            hdr->next = lst;
+        } else {
+            free_hdr(hdr);
+        }
     }
 
     // move the buffer and set the offset
@@ -534,6 +538,9 @@ HTTPResponse *parse_response(int length, char *raw) {
     }
     memcpy(response->body, raw, response->body_length);
 
+    // set the fetch time
+    response->time_fetched = time(NULL);
+
     return response;
 }
 
@@ -549,5 +556,122 @@ int write_to_socket(int sockfd, char *buffer, int buffer_length) {
 
     return writelen;
 }
+
+
+int construct_response(HTTPResponse *response, char **raw_ptr) {
+    /* Reconstructs a response into the provided buffer */
+    // TODO: THIS IS VERY INEFFICIENT (many reallocs)
+    //       consider calculating total memory we need in the start and then
+    //       parsing it as needed
+
+    // setup
+    int response_length = 0;
+    char *raw = NULL;
+
+    // move the HTTP Version into raw
+    int version_length = strlen(response->version);
+    if ((raw = (char *) realloc(raw, version_length + 1)) == NULL) {
+        free_response(response);
+        error_out("Couldn't realloc!");    
+    }
+    memcpy(raw, response->version, version_length);
+    raw[version_length] = ' ';
+    response_length = version_length + 1;
+
+    // move the Status into raw
+    int status_length = strlen(response->status);
+    if ((raw = (char *) realloc(raw, response_length + status_length + 1))
+            == NULL) {
+        free_response(response);
+        error_out("Couldn't realloc!");            
+    }
+    memcpy(raw + response_length, response->status, status_length);
+    raw[response_length + status_length] = ' ';
+    response_length += status_length + 1;
+
+    // move the Status Description into raw
+    int status_desc_length = strlen(response->status_desc);
+    if ((raw = (char *) realloc(raw, response_length + status_desc_length + 1))
+            == NULL) {
+        free_response(response);
+        error_out("Couldn't realloc!");
+    }
+    memcpy(raw + response_length, response->status_desc, status_desc_length);
+    raw[response_length + status_desc_length] = ' ';
+    response_length += status_desc_length + 1;
+
+    // CRLF
+    int crlf_length = strlen(CRLF);
+    if ((raw = (char *) realloc(raw, response_length + crlf_length)) == NULL) {
+        free_response(response);
+        error_out("Couldn't realloc!");
+    }
+    memcpy(raw + response_length, CRLF, crlf_length);
+    response_length += crlf_length;
+
+    // move header into raw
+    for (HTTPHeader *hdr = response->hdrs; hdr; hdr = hdr->next) {
+        int name_length = strlen(hdr->name);
+        int value_length = strlen(hdr->value);
+        if ((raw = (char *) realloc(raw, response_length + name_length + 2 +
+                                    value_length + crlf_length)) == NULL) {
+            free_response(response);
+            error_out("Couldn't realloc!");
+        }
+        // move name into raw
+        memcpy(raw + response_length, hdr->name, name_length);
+        response_length += name_length;
+        // add separator between name and value
+        raw[response_length] = ':';
+        raw[response_length + 1] = ' ';
+        response_length += 2;
+        // move value into raw
+        memcpy(raw + response_length, hdr->value, value_length);
+        response_length += value_length;
+        // add crlf at the end of the header
+        memcpy(raw + response_length, CRLF, crlf_length);
+        response_length += crlf_length;
+    }
+
+    // add age to header
+    int age = time(NULL) - response->time_fetched;
+    int name_length = strlen(AGE);
+    int value_length = snprintf( NULL, 0, "%d", age) + 1;
+    char age_string[value_length];
+    snprintf(age_string, value_length, "%d", age);
+    if ((raw = (char *) realloc(raw, response_length + name_length + 2 +
+                                value_length + 2 * crlf_length)) == NULL) {
+        free_response(response);
+        error_out("Couldn't realloc!");
+    }
+    memcpy(raw + response_length, AGE, name_length);
+    response_length += name_length;
+    raw[response_length] = ':';
+    raw[response_length + 1] = ' ';
+    response_length += 2;
+    memcpy(raw + response_length, age_string, value_length);
+    response_length += value_length;
+    memcpy(raw + response_length, CRLF, crlf_length);
+    response_length += crlf_length;
+
+    // CRLF
+    memcpy(raw + response_length, CRLF, crlf_length);
+    response_length += crlf_length;
+
+    // move the body into raw
+    if ((raw = (char *) realloc(raw, response_length + response->body_length))
+            == NULL) {
+        free_response(response);
+        error_out("Couldn't realloc!");
+    }
+    memcpy(raw + response_length, response->body, response->body_length);
+    response_length += response->body_length;
+
+    // set the requested pointer to our data
+    *raw_ptr = raw;
+
+    return response_length;
+}
+
 
 

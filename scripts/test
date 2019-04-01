@@ -1,13 +1,13 @@
 #!/bin/bash
 
 # set proxy value to communicate with your desired machine
-PROXY='comp112-02.cs.tufts.edu'
+PROXY='comp112-03.cs.tufts.edu'
 
 # set the resource value to request the desired resource
-# RESRC='http://www.cs.cmu.edu/~prs/bio.html'
-# RESRC='http://fossilinsects.myspecies.info/'
-# RESRC='http://portquiz.net:8080/'
-RESRC='http://www.arcanedomain.com/Noahhead.jpg'
+#RESRC='http://www.cs.cmu.edu/~prs/bio.html'
+#RESRC='http://fossilinsects.myspecies.info/'
+RESRC='http://portquiz.net:8080/'
+#RESRC='http://www.arcanedomain.com/Noahhead.jpg'
 
 curl -x $PROXY:$1 $RESRC > ours
 curl $RESRC > real

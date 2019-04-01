@@ -12,6 +12,11 @@
 //
 // Includes and Definitions
 //
+
+#ifndef AP_H
+#define AP_H
+
+
 #include <time.h>
 #include <netdb.h>
 #include <stdio.h>
@@ -35,6 +40,7 @@
 #define CRCR "\r\r"
 #define LFLF "\n\n"
 #define HOST "Host"
+#define AGE "Age"
 #define CR "\r"
 #define LF "\n"
 
@@ -64,7 +70,7 @@ typedef struct HTTPRequest {
     int port;
     char *host;
     HTTPHeader *hdrs;
-    int body_length;
+    int body_length; // For post requests
     char *body;
 } HTTPRequest;
 
@@ -76,6 +82,7 @@ typedef struct HTTPResponse {
     HTTPHeader *hdrs;
     int body_length;
     char *body;
+    time_t time_fetched;
 } HTTPResponse;
 
 
@@ -99,5 +106,7 @@ char *get_hdr_value(HTTPHeader *hdrs, const char *name);
 HTTPHeader *parse_headers(int *offset, char **raw_ptr);
 HTTPRequest *parse_request(int length, char *raw);
 HTTPResponse *parse_response(int length, char *raw);
+int construct_response(HTTPResponse *response, char **raw);
 
+#endif /* AP_H */
 

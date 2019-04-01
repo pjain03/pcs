@@ -10,6 +10,7 @@
 // Includes and Definitions
 //
 #include "ap_utilities.h"
+#include "cache.h"
 
 #define NUM_QUEUED_CONNECTIONS 5
 #define TIMEOUT_INTERVAL 60
@@ -161,24 +162,34 @@ int handle_new_connection(int proxy) {
         if ((request_length = read_hdr(client, &raw_request)) != -1) {
             request = parse_request(request_length, raw_request);
             display_request(request);
+            // Add cache functionality here
+            response = get_data_from_cache(request->url);
 
-            // get the response from the server and send it back to the client
-            server = connect_to_server(request->host, request->port);
-            if ((write_length = write_to_socket(server, raw_request,
-                                                request_length)) >= 0) {
-                if ((response_length = read_all(server, &raw_response)) != -1) {
-                    response = parse_response(response_length, raw_response);
-                    display_response(response);
-                    write_length = write_to_socket(client, raw_response,
-                                                   response_length);
+            if (response != NULL) {
+                // Received response from the cache, write back to client
+                response_length = construct_response(response, &raw_response);
+                write_to_socket(client, raw_response, response_length);  //TODO: see if we can refactor
+
+            } else { 
+                // Get the response from the server, cache it, and send it back to the client
+                server = connect_to_server(request->host, request->port);
+                if ((write_length = write_to_socket(server, raw_request,
+                                                    request_length)) >= 0) {
+                    if ((response_length = read_all(server, &raw_response)) != -1) {
+                        response = parse_response(response_length, raw_response);
+                        display_response(response);
+                        add_data_to_cache(request->url, response);
+                        write_length = write_to_socket(client, raw_response,
+                                                       response_length);
+                    }
                 }
             }
-
             // cleanup
             free(raw_request);
             free_request(request);
             free(raw_response);
-            free_response(response);
+            /* Don't clean up just yet - want to keep the malloc'ed data in cache. free when evict from cache
+            free_response(response); */
         }
     }
 
