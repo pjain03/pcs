@@ -46,6 +46,8 @@ void add_data_to_cache(char *url, HTTPResponse *response) {
 void lru_evict() {
     CacheObject *curr, *lru, *tmp;
 
+
+    fprintf(stderr, "Evicting item from cache\n");
     // Set the first object to the first entry in cache
     HASH_ITER(hh, cache, lru, tmp) {
         break;
@@ -57,6 +59,8 @@ void lru_evict() {
         }        
     } 
    
+
+    fprintf(stderr, "Least recently used was evicted: %s \n", lru->url);
     HASH_DEL(cache, lru);
     free_response(lru->response);
     free(lru);   

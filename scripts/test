@@ -4,13 +4,68 @@
 PROXY='comp112-03.cs.tufts.edu'
 
 # set the resource value to request the desired resource
-#RESRC='http://www.cs.cmu.edu/~prs/bio.html'
+RESRC='http://www.cs.cmu.edu/~prs/bio.html'
 #RESRC='http://fossilinsects.myspecies.info/'
-RESRC='http://portquiz.net:8080/'
+#RESRC='http://portquiz.net:8080/'
 #RESRC='http://www.arcanedomain.com/Noahhead.jpg'
 
 curl -x $PROXY:$1 $RESRC > ours
 curl $RESRC > real
 
 diff ours real
+
+
+if diff ours real; then
+echo "----TEST 1 (Files are the same) PASSED -----"
+else
+echo "---- TEST 1 (Files are the same) FAILED ----"
+fi
+
+
 rm ours real
+
+
+# Test 1: text based files
+
+# Test 2: jpg files
+
+# Test 3: Cache by searching same thing
+# pass if time taken through cache < time from server
+
+
+# Test 4: Eviction by filling up the cache
+# pass if fill up cache with n things, and search for first thing again
+# first thing should take more time than other things in the cache
+
+# Assuming cache size = 3
+echo 'Testing eviction policy'
+echo "PROXY ON http://www.cs.cmu.edu/~prs/bio.html"
+curl -x $PROXY:$1 'http://www.cs.cmu.edu/~prs/bio.html' > b
+
+
+echo "PROXY ON http://www.arcanedomain.com/Noahhead.jpg"
+curl -x $PROXY:$1 'http://www.arcanedomain.com/Noahhead.jpg' > b
+
+echo "PROXY ON http://portquiz.net:8080/"
+curl -x $PROXY:$1 'http://portquiz.net:8080/' > b
+
+echo "PROXY ON http://www.cs.cmu.edu/~prs/bio.html"
+curl -x $PROXY:$1 'http://www.cs.cmu.edu/~prs/bio.html' > b # should be fast
+
+echo "PROXY ON http://www.theflowerfields.com/visitor-information/"
+curl -x $PROXY:$1 'http://www.theflowerfields.com/visitor-information/' > b
+
+# First item should have been evicted
+echo "This item should have been evicted = take more time"
+echo "PROXY ON http://www.arcanedomain.com/Noahhead.jpg"
+curl -x $PROXY:$1 'http://www.arcanedomain.com/Noahhead.jpg' > b
+
+rm b
+
+# one thing to keep in mind is that previous things loaded in first few tests will be cached too
+# so by the time test 4 is run, cache is not at a clean state 
+# maybe thing about a function to flush out the cache
+
+
+
+

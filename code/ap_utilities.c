@@ -262,12 +262,13 @@ void display_request(HTTPRequest *request) {
         for (hdr = request->hdrs; hdr; hdr = hdr->next) {
             printf("%32s: %s\n", hdr->name, hdr->value);
         }
+        /*
         printf("Message Body:");
         if (request->body_length) {
             printf("\n%.*s\n\n", request->body_length, request->body);
         } else {
             printf(" EMPTY\n\n");
-        }
+        } */
     }
 }
 
@@ -285,12 +286,13 @@ void display_response(HTTPResponse *response) {
         for (hdr = response->hdrs; hdr; hdr = hdr->next) {
             printf("%32s: %s\n", hdr->name, hdr->value);
         }
-        printf("Message Body:");
+        // Not printing out message body, clogging up terminal
+       /* printf("Message Body:");
         if (response->body_length) {
             printf("\n%.*s\n\n", response->body_length, response->body);
         } else {
-            printf(" EMPTY\n\n");
-        }
+            printf(" EMPTY\n\n"); 
+        } */
     }
 }
 

@@ -5,7 +5,7 @@
 #include "ap_utilities.h"
 
 
-#define MAX_CACHE_SIZE 10
+#define MAX_CACHE_SIZE 3
 
 typedef struct CacheObject {
 	char *url; // Key value
