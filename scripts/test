@@ -42,7 +42,6 @@ echo 'Testing eviction policy'
 echo "PROXY ON http://www.cs.cmu.edu/~prs/bio.html"
 curl -x $PROXY:$1 'http://www.cs.cmu.edu/~prs/bio.html' > b
 
-
 echo "PROXY ON http://www.arcanedomain.com/Noahhead.jpg"
 curl -x $PROXY:$1 'http://www.arcanedomain.com/Noahhead.jpg' > b
 
