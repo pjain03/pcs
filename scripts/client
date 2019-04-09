@@ -1,0 +1,5 @@
+#!/bin/bash
+
+PROXY='comp112-02.cs.tufts.edu'
+
+./scripts/exe_client $PROXY $1

@@ -27,6 +27,9 @@
 int setup_server(int port_num);
 int accept_client(int proxy);
 int handle_new_connection(int proxy);
+void handle_get(int client, int server, HTTPRequest *request,
+                char *raw_request, int request_length);
+void handle_connect(int client, int server, HTTPRequest *request);
 void handle_activity(fd_set *master, fd_set *readfds, int *max_fd, int proxy,
                      char *buffer);
 
@@ -150,6 +153,9 @@ void handle_activity(fd_set *master, fd_set *readfds, int *max_fd, int proxy,
 
 int handle_new_connection(int proxy) {
     /* Handle new clients */
+    // TODO: change the entire structure, no more read_hdr, no more read_all
+    //       handling concurrent clients will require us to do things a lot
+    //       differently
 
     int client, server, request_length = 0, response_length = 0,
         write_length = 0;
@@ -160,35 +166,36 @@ int handle_new_connection(int proxy) {
     // connect to the client and receive its request
     if ((client = accept_client(proxy)) >= 0) {
         if ((request_length = read_hdr(client, &raw_request)) != -1) {
+
             request = parse_request(request_length, raw_request);
             display_request(request);
-            // Add cache functionality here
             response = get_data_from_cache(request->url);
 
             if (response != NULL) {
+
                 // Received response from the cache, write back to client
                 response_length = construct_response(response, &raw_response);
                 write_to_socket(client, raw_response, response_length);  //TODO: see if we can refactor
+            } else {
 
-            } else { 
                 // Get the response from the server, cache it, and send it back to the client
                 server = connect_to_server(request->host, request->port);
-                if ((write_length = write_to_socket(server, raw_request,
-                                                    request_length)) >= 0) {
-                    if ((response_length = read_all(server, &raw_response)) != -1) {
-                        response = parse_response(response_length, raw_response);
-                        display_response(response);
-                        add_data_to_cache(request->url, response);
-                        write_length = write_to_socket(client, raw_response,
-                                                       response_length);
-                    }
+                if (request->method == GET) {
+                    printf("GET!\n");
+                    handle_get(client, server, request, raw_request,
+                               request_length);
+                } else if (request->method == CONNECT) {
+                    printf("CONNECT!\n");
+                    handle_connect(client, server, request);
                 }
             }
+
             // cleanup
             free(raw_request);
             free_request(request);
             free(raw_response);
-            /* Don't clean up just yet - want to keep the malloc'ed data in cache. free when evict from cache
+            /* Don't clean up just yet - want to keep the malloc'ed data in cache.
+               Free when evict from cache.
             free_response(response); */
         }
     }
@@ -209,6 +216,102 @@ int accept_client(int proxy) {
     }
 
     return sockfd;
+}
+
+
+void handle_get(int client, int server, HTTPRequest *request,
+                char *raw_request, int request_length) {
+    /* Handles the GET pipeline */
+
+    int response_length = 0, write_length = 0;
+    char *raw_response = NULL;
+    HTTPResponse *response = response;
+    write_length = write_to_socket(server, raw_request, request_length);
+
+    if ((response_length = read_all(server, &raw_response)) != -1) {
+        response = parse_response(response_length, raw_response);
+        display_response(response);
+        add_data_to_cache(request->url, response);
+        write_length = write_to_socket(client, raw_response,
+                                        response_length);
+    }
+}
+
+
+void handle_connect(int client, int server, HTTPRequest *request) {
+    /* Handle the CONNECT pipeline */
+
+    // setup
+    int read_len = 0, last_read = 1, readlen = 0, req_len = 0, max_fd = 0, n = 0,
+        th_len = strlen(request->version) + strlen(OK) + strlen(CRLF2);
+    fd_set master, readfds;
+    struct timeval tv;
+    char *buffer, *raw = NULL, *th_resp = NULL;
+    if ((buffer = (char *) malloc(BUFFER_SIZE)) == NULL) {
+        error_out("Couldn't malloc!");
+    }
+    if ((th_resp = (char *) malloc(th_len)) == NULL) {
+        error_out("Couldn't malloc!");
+    }
+    bzero(buffer, BUFFER_SIZE);
+    bzero(th_resp, th_len);
+
+    // send 200 to client and begin communication
+    memcpy(th_resp, request->version, strlen(request->version));
+    memcpy(th_resp + strlen(request->version), OK, strlen(OK));
+    memcpy(th_resp + strlen(request->version) + strlen(OK), CRLF2, strlen(CRLF2));
+    write_to_socket(client, th_resp, th_len);
+
+    // Tunnel connection between client and server
+    // TODO: multiple connections should fix this (SO BAD OMFG)
+    //       this can then be treated as ANY other connection
+    FD_ZERO(&master);
+    FD_SET(client, &master);
+    FD_SET(server, &master);
+    max_fd = server;
+    tv.tv_sec = TIMEOUT_INTERVAL;
+    tv.tv_usec = TIMEOUT_INTERVAL;
+    while (1) {
+        FD_ZERO(&readfds);
+        memcpy(&readfds, &master, sizeof(master));
+        if ((n = select(max_fd + 1, &readfds, NULL, NULL, &tv)) == -1) {
+            error_out("Select errored out!");
+        } else if (n == 0) {
+            error_declare("TODO: Handle Timeout!");
+            break;
+        } else {
+            for (int i = client; i < max_fd + 1; i++) {
+                if (FD_ISSET(i, &readfds)) {
+                    printf("Data is available now! %d, %d, %d\n", i, client, server);
+                    // client said something
+                    if (i == client) {
+                        last_read = read(client, buffer, BUFFER_SIZE);
+                        printf("READ %d bytes from client!\n", last_read);
+                        write_to_socket(server, buffer, last_read);
+                    }
+                    // server said something
+                    else if (i == server) {
+                        last_read = read(server, buffer, BUFFER_SIZE);
+                        printf("READ %d bytes from server!\n", last_read);
+                        write_to_socket(client, buffer, last_read);
+                    }
+                }
+                if (last_read < 0) {
+                    error_declare("Select CONNECT error!");
+                    break;
+                } else if (last_read == 0) {
+                    break;
+                }
+                bzero(buffer, BUFFER_SIZE);
+            }
+        }
+        if (last_read <= 0) {
+            break;
+        }
+    }
+
+    // cleanup
+    free(buffer);
 }
 
 
