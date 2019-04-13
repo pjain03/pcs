@@ -76,6 +76,7 @@ int read_all(int sockfd, char **raw_ptr) {
     if ((buffer = (char *) malloc(buf_size)) == NULL) {
         error_out("Couldn't malloc!");
     }
+    bzero(buffer, BUFFER_SIZE);
 
     // read until we cannot read anymore/communication is ended
     do {
@@ -122,6 +123,7 @@ int read_hdr(int sockfd, char **raw_ptr) {
     if ((buffer = (char *) malloc(buf_size)) == NULL) {
         error_out("Couldn't malloc!");
     }
+    bzero(buffer, BUFFER_SIZE);
 
     // read until fail/communication interrupted/header complete
     // - header complete when last chars read are CRLF2 or CRCR or LFLF
@@ -394,6 +396,8 @@ HTTPRequest *parse_request(int length, char *raw) {
     size_t method_length = strcspn(raw, " ");
     if (strncmp(raw, GET_RQ, strlen(GET_RQ)) == 0) {
         request->method = GET;
+    } else if (strncmp(raw, CONNECT_RQ, strlen(CONNECT_RQ)) == 0) {
+        request->method = CONNECT;
     } else {
         request->method = UNSUPPORTED;
     }
@@ -555,6 +559,8 @@ int write_to_socket(int sockfd, char *buffer, int buffer_length) {
     if ((writelen = write(sockfd, buffer, buffer_length)) < 0) {
         error_declare("Couldn't write to the socket!");
     }
+
+    printf("WROTE %d bytes\n", writelen);
 
     return writelen;
 }

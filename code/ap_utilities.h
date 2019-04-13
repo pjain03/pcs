@@ -41,6 +41,7 @@
 #define LFLF "\n\n"
 #define HOST "Host"
 #define AGE "Age"
+#define OK " 200 Connection established"
 #define CR "\r"
 #define LF "\n"
 
@@ -51,7 +52,7 @@
 typedef enum HTTPMethod {
     /* HTTP Methods we support */
     GET,
-    // CONNECT,
+    CONNECT,
     UNSUPPORTED
 } HTTPMethod;
 

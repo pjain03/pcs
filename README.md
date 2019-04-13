@@ -18,3 +18,6 @@ Run the following commands:
 2. Do we even need the client? Maybe we can use it to run a variety of different tests? Or maybe run the test script on a variety of different machines...?
 3. NOTE: in our implementation we assume that no header will be formatted such that the lines in the header end with a LF followed by a CR. Lines may end with LF or CR or CRLF but not LFCR
 4. In our HTTPRequest and HTTPResponse we terminate all char* fields with \0 except the body field. The body field contains the data of a message and that shouldn't be tampered with because the body itself could contain a \0 character. We can use strlen on every field other than the body. This is why we store the body's length as a field in our Request and Response objects.
+5. CONNECT
+6. Testing scripts
+7. Handle multiple clients simultaneously
