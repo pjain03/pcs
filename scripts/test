@@ -6,10 +6,10 @@ HTTP_PROXY='comp112-02.cs.tufts.edu:'$1
 # set the resource value to request the desired resource
 #RESRC='http://www.cs.cmu.edu/~prs/bio.html'
 #RESRC='http://fossilinsects.myspecies.info/'
-RESRC='http://portquiz.net:8080/'
+# RESRC='http://portquiz.net:8080/'
 # RESRC='http://www.arcanedomain.com/Noahhead.jpg'
 # RESRC='https://www.facebook.com'
-# RESRC='https://www.google.com'
+RESRC='https://www.google.com'
 
 curl -x $HTTP_PROXY $RESRC  > ours
 curl $RESRC > real

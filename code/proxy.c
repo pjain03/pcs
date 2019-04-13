@@ -191,6 +191,7 @@ int handle_new_connection(int proxy) {
             }
 
             // cleanup
+            close(server);
             free(raw_request);
             free_request(request);
             free(raw_response);
