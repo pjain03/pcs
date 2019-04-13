@@ -26,6 +26,7 @@
 //
 int setup_server(int port_num);
 int accept_client(int proxy);
+int handle_client(int client, int proxy);
 int handle_new_connection(int proxy);
 void handle_get(int client, int server, HTTPRequest *request,
                 char *raw_request, int request_length);
@@ -80,6 +81,7 @@ int main(int argc, char **argv) {
         } else {
             handle_activity(&master, &readfds, &max_fd, proxy, buffer);
         }
+        printf("Restart!\n");
     }
 
     // cleanup and exit
@@ -127,27 +129,65 @@ void handle_activity(fd_set *master, fd_set *readfds, int *max_fd, int proxy,
                      char *buffer) {
     /* Handles client requests */
 
+    // TODO: handle activity on an existing connection.
+    //    so far, we are not handling persistent connections. we simply
+    //    accept a client, handle their request, and close that
+    //    connection. when we do make connections persistent, we will
+    //    need to handle the case where 'i != proxy'. we will also need
+    //    to update our 'master' and 'max_fd' variables then (in the
+    //    'i == proxy' part). we might also have to keep track of every
+    //    persistent connection we have
+    //
+    //          Replace the following:
+    //    - handle_new_connection
+    //    - read_all
+    //    - read_hdr
+    //
+    //          Correct the following:
+    //    - handle_get
+    //    - handle_connect
+    //
+    //          Edit the following structures:
+    //    - Request/Response should be able to handle partial messages
+
+    int n;
+
     // if there are multiple such proxies being used in the user's environment,
     // there are no guarantees as to which file descriptor a new connection
     // will receive. therefore, we check all possible file descriptors since a
     // new connection will have a file descriptor larger than our 'max_fd', but
     // we cannot say with certainty which one.
-    for (int i = 0; i < FD_SETSIZE + 1; i++) {
+    for (int i = 0; i < *max_fd + 1; i++) {
         if (FD_ISSET(i, readfds)) {
             if (i == proxy) {
-                int client = handle_new_connection(proxy);
-                close(client);
+                if ((n = accept_client(proxy)) >= 0) {
+                    // Client knows if they weren't able to contact us so no
+                    // one is left waiting. We do need to handle it if we
+                    // cannot accept clients so we log it in accept_client.
+                    // Watch for reads from this client going forward.
+                    FD_SET(n, master);
+                    if (*max_fd < n) {
+                        *max_fd = n;
+                    }
+                }
+            } else {
+                if ((n = handle_client(i, proxy)) <= 0) {
+                    // We either errored out or finished our conversation. This
+                    // is cleanup.
+                    // TODO: clear client related data structure if there are any
+                    FD_CLR(i, master);
+                    close(i);
+                }
             }
-            // TODO: handle activity on an existing connection.
-            //    so far, we are not handling persistent connections. we simply
-            //    accept a client, handle their request, and close that
-            //    connection. when we do make connections persistent, we will
-            //    need to handle the case where 'i != proxy'. we will also need
-            //    to update our 'master' and 'max_fd' variables then (in the
-            //    'i == proxy' part). we might also have to keep track of every
-            //    persistent connection we have
         }
     }
+}
+
+
+int handle_client(int client, int proxy) {
+    /* Handles client */
+
+    return -1;
 }
 
 
