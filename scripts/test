@@ -1,20 +1,21 @@
 #!/bin/bash
 
 # set proxy value to communicate with your desired machine
-PROXY='comp112-03.cs.tufts.edu'
+HTTP_PROXY='comp112-02.cs.tufts.edu:'$1
 
 # set the resource value to request the desired resource
-RESRC='http://www.cs.cmu.edu/~prs/bio.html'
+#RESRC='http://www.cs.cmu.edu/~prs/bio.html'
 #RESRC='http://fossilinsects.myspecies.info/'
-#RESRC='http://portquiz.net:8080/'
-#RESRC='http://www.arcanedomain.com/Noahhead.jpg'
+# RESRC='http://portquiz.net:8080/'
+# RESRC='http://www.arcanedomain.com/Noahhead.jpg'
+# RESRC='https://www.facebook.com'
+RESRC='https://www.google.com'
 
 # Test 1: text based files
-curl -x $PROXY:$1 $RESRC > ours
+curl -x $HTTP_PROXY $RESRC  > ours
 curl $RESRC > real
 
 diff ours real
-
 
 if diff ours real; then
 echo "---------------- TEST 1: Text based files PASSED ------------------"
@@ -27,7 +28,7 @@ rm ours real
 
 
 
-# Test 2: jpg files
+ Test 2: jpg files
 
 # Test 3: Cache by searching same thing
 # pass if time taken through cache < time from server
@@ -39,31 +40,28 @@ rm ours real
 
 # Assuming cache size = 3
 
+# echo 'Testing eviction policy'
+# echo "PROXY ON http://www.cs.cmu.edu/~prs/bio.html"
+# curl -x $PROXY:$1 'http://www.cs.cmu.edu/~prs/bio.html' > b
 
+# echo "PROXY ON http://www.arcanedomain.com/Noahhead.jpg"
+# curl -x $PROXY:$1 'http://www.arcanedomain.com/Noahhead.jpg' > b
 
+# echo "PROXY ON http://portquiz.net:8080/"
+# curl -x $PROXY:$1 'http://portquiz.net:8080/' > b
 
-#echo 'Testing eviction policy'
-#echo "PROXY ON http://www.cs.cmu.edu/~prs/bio.html"
-#curl -x $PROXY:$1 'http://www.cs.cmu.edu/~prs/bio.html' > b
-#
-#
-#echo "PROXY ON http://www.arcanedomain.com/Noahhead.jpg"
-#curl -x $PROXY:$1 'http://www.arcanedomain.com/Noahhead.jpg' > b
-#
-#echo "PROXY ON http://portquiz.net:8080/"
-#curl -x $PROXY:$1 'http://portquiz.net:8080/' > b
-#
-#echo "PROXY ON http://www.cs.cmu.edu/~prs/bio.html"
-#curl -x $PROXY:$1 'http://www.cs.cmu.edu/~prs/bio.html' > b # should be fast
-#
-#echo "PROXY ON http://www.theflowerfields.com/visitor-information/"
-#curl -x $PROXY:$1 'http://www.theflowerfields.com/visitor-information/' > b
-#
-## First item should have been evicted
-#echo "This item should have been evicted = take more time"
-#echo "PROXY ON http://www.arcanedomain.com/Noahhead.jpg"
-#curl -x $PROXY:$1 'http://www.arcanedomain.com/Noahhead.jpg' > b
-#rm b
+# echo "PROXY ON http://www.cs.cmu.edu/~prs/bio.html"
+# curl -x $PROXY:$1 'http://www.cs.cmu.edu/~prs/bio.html' > b # should be fast
+
+# echo "PROXY ON http://www.theflowerfields.com/visitor-information/"
+# curl -x $PROXY:$1 'http://www.theflowerfields.com/visitor-information/' > b
+
+# # First item should have been evicted
+# echo "This item should have been evicted = take more time"
+# echo "PROXY ON http://www.arcanedomain.com/Noahhead.jpg"
+# curl -x $PROXY:$1 'http://www.arcanedomain.com/Noahhead.jpg' > b
+
+# rm b
 
 # one thing to keep in mind is that previous things loaded in first few tests will be cached too
 # so by the time test 4 is run, cache is not at a clean state 
@@ -83,5 +81,4 @@ echo $PROXY_TIME
 #else
 #echo "---------------- TEST 2: Basic Cache insertion FAILED ------------------"
 #fi
-
 
