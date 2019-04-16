@@ -27,6 +27,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include "uthash/src/uthash.h"
 
 #define DEFAULT_HTTP_PORT 80
 #define MAX_CONNECTIONS 10
@@ -88,10 +89,13 @@ typedef struct HTTPResponse {
 } HTTPResponse;
 
 typedef struct Connection {
+    /* We will map sockfd to this other data */
+    int sockfd; // key
     char *raw;
-    int sockfd, read_len;
+    int read_len;
     HTTPRequest *request;
     HTTPResponse *response;
+	UT_hash_handle hh;
 } Connection;
 
 

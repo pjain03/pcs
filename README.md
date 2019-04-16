@@ -10,7 +10,7 @@ Run the following commands:
     * `./scripts/proxy <port number>`
 2. Test the proxy using our test script. Edit the `PROXY` and `RESRC` variables defined in `./scripts/test` as indicated to test a different machine or resource respectively:
     * `./scripts/test <port number>`
-    * NOTE: We use python version 2.7.10
+    * NOTE: We use python version 2.7.12
 
 ## Development Notes
 
