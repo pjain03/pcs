@@ -29,6 +29,7 @@
 #include <netinet/in.h>
 
 #define DEFAULT_HTTP_PORT 80
+#define MAX_CONNECTIONS 10
 #define CONTENT_LENGTH "Content-Length"
 #define BUFFER_SIZE 2048
 #define CONNECT_RQ "CONNECT"
@@ -85,6 +86,13 @@ typedef struct HTTPResponse {
     char *body;
     time_t time_fetched;
 } HTTPResponse;
+
+typedef struct Connection {
+    char *raw;
+    int sockfd, read_len;
+    HTTPRequest *request;
+    HTTPResponse *response;
+} Connection;
 
 
 //

@@ -24,15 +24,21 @@
 //
 // Forward Declarations
 //
+int add_client(int proxy, Connection **connection_list);
+int read_sockfd(int sockfd, char *buffer, Connection *connection);
 int setup_server(int port_num);
 int accept_client(int proxy);
-int handle_client(int client, int proxy);
+int handle_client(int client, int proxy, char *buffer, Connection **connection_list);
+int add_connection(int sockfd, Connection **connection_list);
+int search_connection(int sockfd, Connection **connection_list);
 int handle_new_connection(int proxy);
 void handle_get(int client, int server, HTTPRequest *request,
                 char *raw_request, int request_length);
 void handle_connect(int client, int server, HTTPRequest *request);
 void handle_activity(fd_set *master, fd_set *readfds, int *max_fd, int proxy,
-                     char *buffer);
+                     char *buffer, Connection **connection_list);
+void clear_connection(Connection *connection);
+void remove_connection(int sockfd, Connection **connection_list);
 
 
 //
@@ -56,6 +62,7 @@ int main(int argc, char **argv) {
     char buffer[BUFFER_SIZE];
     fd_set master, readfds;
     struct timeval tv;
+    Connection **connection_list;
 
     // setup server
     port_num = atoi(argv[1]);
@@ -69,6 +76,17 @@ int main(int argc, char **argv) {
     tv.tv_sec = TIMEOUT_INTERVAL;
     tv.tv_usec = TIMEOUT_INTERVAL;
 
+    // setup multiple clients
+    connection_list = (Connection **) malloc(sizeof(Connection *) * MAX_CONNECTIONS);
+    for (int i = 0; i < MAX_CONNECTIONS; i++) {
+        connection_list[i] = (Connection *) malloc(sizeof(Connection));
+        connection_list[i]->raw = NULL;
+        connection_list[i]->sockfd = -1;
+        connection_list[i]->read_len = 0;
+        connection_list[i]->request = NULL;
+        connection_list[i]->response = NULL;
+    }
+
     // start waiting for clients to connect
     while (1) {
         FD_ZERO(&readfds);
@@ -79,9 +97,16 @@ int main(int argc, char **argv) {
             error_declare("TODO: Handle Timeout!");
             break;
         } else {
-            handle_activity(&master, &readfds, &max_fd, proxy, buffer);
+            handle_activity(&master, &readfds, &max_fd, proxy, buffer, connection_list);
         }
-        printf("Restart!\n");
+        for (int i = 0; i < MAX_CONNECTIONS; i++) {
+            if (connection_list[i]->sockfd != -1) {
+                printf("CONNECTION: %d\n", connection_list[i]->sockfd);
+                printf("RAW: %s\n", connection_list[i]->raw);
+                printf("READLEN: %d\n", connection_list[i]->read_len);
+                printf("\n");
+            }
+        }
     }
 
     // cleanup and exit
@@ -126,7 +151,7 @@ int setup_server(int port_num) {
 
 
 void handle_activity(fd_set *master, fd_set *readfds, int *max_fd, int proxy,
-                     char *buffer) {
+                     char *buffer, Connection **connection_list) {
     /* Handles client requests */
 
     // TODO: handle activity on an existing connection.
@@ -160,7 +185,7 @@ void handle_activity(fd_set *master, fd_set *readfds, int *max_fd, int proxy,
     for (int i = 0; i < *max_fd + 1; i++) {
         if (FD_ISSET(i, readfds)) {
             if (i == proxy) {
-                if ((n = accept_client(proxy)) >= 0) {
+                if ((n = add_client(proxy, connection_list)) > 0) {
                     // Client knows if they weren't able to contact us so no
                     // one is left waiting. We do need to handle it if we
                     // cannot accept clients so we log it in accept_client.
@@ -171,11 +196,11 @@ void handle_activity(fd_set *master, fd_set *readfds, int *max_fd, int proxy,
                     }
                 }
             } else {
-                if ((n = handle_client(i, proxy)) <= 0) {
-                    // We either errored out or finished our conversation. This
-                    // is cleanup.
-                    // TODO: clear client related data structure if there are any
+                if ((n = handle_client(i, proxy, buffer, connection_list)) <= 0) {
+                    // We either errored out or finished our conversation.
+                    // This is cleanup.
                     FD_CLR(i, master);
+                    remove_connection(i, connection_list);
                     close(i);
                 }
             }
@@ -184,10 +209,114 @@ void handle_activity(fd_set *master, fd_set *readfds, int *max_fd, int proxy,
 }
 
 
-int handle_client(int client, int proxy) {
-    /* Handles client */
+int add_client(int proxy, Connection **connection_list) {
+    /* Adds client to connection_list */
+
+    int n;
+
+    if ((n = accept_client(proxy)) < 0) {
+        error_declare("Cannot accept client!");
+    } else {
+        n = add_connection(n, connection_list);
+    }
+
+    return n;
+}
+
+
+int add_connection(int sockfd, Connection **connection_list) {
+    /* Adds connection to our connection list
+     * NOTE: -1 means we couldn't add to our connection list */
+
+    for (int i = 0; i < MAX_CONNECTIONS; i++) {
+        if (connection_list[i]->sockfd == -1) {
+            connection_list[i]->sockfd = sockfd;
+            return sockfd;
+        }
+    }
 
     return -1;
+}
+
+
+int search_connection(int sockfd, Connection **connection_list) {
+    /* Searches for client and returns its ID from connection_list
+     * NOTE: returns -1 if we couldn't find the connection in our list */
+
+    for (int i = 0; i < MAX_CONNECTIONS; i++) {
+        if (connection_list[i]->sockfd == sockfd) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+
+void remove_connection(int sockfd, Connection **connection_list) {
+    /* Removes client from the connection_list */
+
+    int connection_id = search_connection(sockfd, connection_list);
+    if (connection_id != -1) {
+        clear_connection(connection_list[connection_id]);
+    }
+}
+
+
+void clear_connection(Connection *connection) {
+    /* Clears the information from the connection passed in */
+
+    if (connection->raw != NULL) {
+        free(connection->raw);
+    }
+    connection->raw = NULL;
+    connection->sockfd = -1;
+    connection->read_len = 0;
+    connection->request = NULL;
+    connection->response = NULL;
+}
+
+
+int handle_client(int sockfd, int proxy, char *buffer, Connection **connection_list) {
+    /* Handles client */
+
+    int last_read = -1;
+    Connection *connection = connection_list[search_connection(sockfd, connection_list)];
+
+    // read from the sockfd
+    last_read = read_sockfd(sockfd, buffer, connection);
+
+    // parse read from the sockfd
+    if (last_read == 0) // response {
+
+    } else if ()
+
+    return last_read;
+}
+
+
+int read_sockfd(int sockfd, char *buffer, Connection *connection) {
+    /* Reads from the socket and stores it in the partial buffer of the connection */
+
+    int last_read = 0;
+    bzero(buffer, BUFFER_SIZE);
+
+    if ((last_read = read(sockfd, buffer, BUFFER_SIZE)) == -1) {
+        error_declare("Couldn't read from client socket!");
+        return -1;
+    }
+
+    if (last_read > 0) {
+        if ((connection->raw = (char *) realloc(connection->raw, connection->read_len + last_read))
+                == NULL) {
+            error_declare("Couldn't realloc!");
+            clear_connection(connection);
+            return -1;
+        }
+        memcpy(connection->raw + connection->read_len, buffer, last_read);
+        connection->read_len += last_read;
+    }
+
+    return last_read;
 }
 
 

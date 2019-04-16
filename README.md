@@ -21,3 +21,4 @@ Run the following commands:
 5. CONNECT
 6. Testing scripts
 7. Handle multiple clients simultaneously
+8. Move connection list to hash
