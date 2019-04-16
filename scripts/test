@@ -9,7 +9,6 @@ import time
 port = sys.argv[1]
 proxy = "comp112-03.cs.tufts.edu"
 url1 = "http://www.cs.cmu.edu/~prs/bio.html"
-url2 = "http://fossilinsects.myspecies.info/"
 url3 = "http://portquiz.net:8080/"
 url4 = "http://www.arcanedomain.com/Noahhead.jpg"
 url5 = "http://www.theflowerfields.com/visitor-information/"
@@ -61,7 +60,12 @@ else:
 
 os.system("rm temp")
 
+#Test 4: Test eviction policy
+os.system("curl -s -x " + proxy + ":" + port + " " + url5 + " > temp")
 
+print ("--------- TEST 4 (Eviction from cache assuming cache size = 3) CHECK SERVER LOGS --------")
+
+os.system("rm temp")
 
 
 

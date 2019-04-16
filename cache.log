@@ -1,0 +1,8 @@
+Eviction policy: random
+
+18:41:31 ADD http://www.cs.cmu.edu/~prs/bio.html
+18:41:34 ADD http://www.arcanedomain.com/Noahhead.jpg
+18:41:39 ADD http://portquiz.net:8080/
+18:41:39 FETCH http://portquiz.net:8080/
+18:41:42 RANDOM EVICT http://www.cs.cmu.edu/~prs/bio.html 
+18:41:42 ADD http://www.theflowerfields.com/visitor-information/
