@@ -11,25 +11,24 @@ HTTP_PROXY='comp112-02.cs.tufts.edu:'$1
 # RESRC='https://www.facebook.com'
 RESRC='https://www.google.com'
 
+# Test 1: text based files
 curl -x $HTTP_PROXY $RESRC  > ours
 curl $RESRC > real
 
 diff ours real
 
-
-# if diff ours real; then
-# echo "----TEST 1 (Files are the same) PASSED -----"
-# else
-# echo "---- TEST 1 (Files are the same) FAILED ----"
-# fi
-
-
-# rm ours real
+if diff ours real; then
+echo "---------------- TEST 1: Text based files PASSED ------------------"
+else
+echo "---------------- TEST 1: Text based files FAILED ------------------"
+fi
 
 
-# Test 1: text based files
+rm ours real
 
-# Test 2: jpg files
+
+
+ Test 2: jpg files
 
 # Test 3: Cache by searching same thing
 # pass if time taken through cache < time from server
@@ -40,6 +39,7 @@ diff ours real
 # first thing should take more time than other things in the cache
 
 # Assuming cache size = 3
+
 # echo 'Testing eviction policy'
 # echo "PROXY ON http://www.cs.cmu.edu/~prs/bio.html"
 # curl -x $PROXY:$1 'http://www.cs.cmu.edu/~prs/bio.html' > b
@@ -67,4 +67,18 @@ diff ours real
 # so by the time test 4 is run, cache is not at a clean state 
 # maybe thing about a function to flush out the cache
 
+RESRC='http://fossilinsects.myspecies.info/'
+
+SERVER_TIME=$(curl -so /tmp/ -w "%{time_total}" $RESRC)
+PROXY_TIME=$(curl -x $PROXY:$1 -so /tmp/ -w "%{time_total}" $RESRC)
+
+echo $SERVER_TIME
+echo $PROXY_TIME
+
+
+#if [$SERVER_TIME -gt $PROXY_TIME] then 
+#echo "---------------- TEST 2: Basic cache insertion PASSED ------------------"
+#else
+#echo "---------------- TEST 2: Basic Cache insertion FAILED ------------------"
+#fi
 
