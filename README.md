@@ -7,7 +7,9 @@ Run the following commands:
 
 ## Usage
 1. Run the proxy using:
-    * `./scripts/proxy <port number>`
+    * `./scripts/exe_proxy <port number> <eviction policy>`
+    Eviction policies to choose from: lru, mru, random
+    If no eviction policy was provided, lru is the default
 2. Test the proxy using our test script. Edit the `PROXY` and `RESRC` variables defined in `./scripts/test` as indicated to test a different machine or resource respectively:
     * `./scripts/test <port number>`
     * NOTE: We use python version 2.7.10

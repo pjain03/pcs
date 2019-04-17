@@ -90,7 +90,7 @@ void lru_evict() {
     } 
    
 
-    fprintf(cache_log, "%02d:%02d:%02d LRU EVICT %s \n", current_time->tm_hour, 
+    fprintf(cache_log, "%02d:%02d:%02d EVICT %s \n", current_time->tm_hour, 
            current_time->tm_min, 
            current_time->tm_sec, lru->url);
     fflush(cache_log);
@@ -116,7 +116,7 @@ void mru_evict() {
     } 
    
 
-    fprintf(cache_log, "%02d:%02d:%02d MRU EVICT %s \n", current_time->tm_hour, 
+    fprintf(cache_log, "%02d:%02d:%02d EVICT %s \n", current_time->tm_hour, 
            current_time->tm_min, 
            current_time->tm_sec, mru->url);
     fflush(cache_log);
@@ -149,7 +149,7 @@ void random_evict() {
     } 
    
 
-    fprintf(cache_log, "%02d:%02d:%02d RANDOM EVICT %s \n", current_time->tm_hour, 
+    fprintf(cache_log, "%02d:%02d:%02d EVICT %s \n", current_time->tm_hour, 
            current_time->tm_min, 
            current_time->tm_sec, random->url);
     fflush(cache_log);

@@ -77,7 +77,7 @@ int main(int argc, char **argv) {
             error_out("Select errored out!");
         } else if (n == 0) {
             error_declare("TODO: Handle Timeout!");
-            break;
+            //break;
         } else {
             handle_activity(&master, &readfds, &max_fd, proxy, buffer);
         }
