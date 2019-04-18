@@ -72,7 +72,7 @@ int main(int argc, char **argv) {
     while (1) {
         FD_ZERO(&readfds);
         memcpy(&readfds, &master, sizeof(master));
-        if ((n = select(max_fd + 1, &readfds, NULL, NULL, &tv)) == -1) {
+        if ((n = select(max_fd + 1, &readfds, NULL, NULL, NULL)) == -1) {
             error_out("Select errored out!");
         } else if (n == 0) {
             error_declare("TODO: Handle Timeout!");
@@ -288,19 +288,20 @@ void handle_connect(int client, int server, HTTPRequest *request) {
                     if (i == client) {
                         last_read = read(client, buffer, BUFFER_SIZE);
                         printf("READ %d bytes from client!\n", last_read);
-                        write_to_socket(server, buffer, last_read);
+                        if (last_read >= 0) {
+                            write_to_socket(server, buffer, last_read);
+                        }
                     }
                     // server said something
                     else if (i == server) {
                         last_read = read(server, buffer, BUFFER_SIZE);
                         printf("READ %d bytes from server!\n", last_read);
-                        write_to_socket(client, buffer, last_read);
+                        if (last_read >= 0) {
+                            write_to_socket(client, buffer, last_read);
+                        }
                     }
                 }
-                if (last_read < 0) {
-                    error_declare("Select CONNECT error!");
-                    break;
-                } else if (last_read == 0) {
+                if (last_read <= 0) {
                     break;
                 }
                 bzero(buffer, BUFFER_SIZE);

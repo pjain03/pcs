@@ -7,12 +7,21 @@ import time
 
 #os.system
 port = sys.argv[1]
-proxy = "comp112-03.cs.tufts.edu"
+proxy = "comp112-02.cs.tufts.edu"
+url0 = "https://www.google.com"
 url1 = "http://www.cs.cmu.edu/~prs/bio.html"
 url2 = "http://fossilinsects.myspecies.info/"
 url3 = "http://portquiz.net:8080/"
 url4 = "http://www.arcanedomain.com/Noahhead.jpg"
 url5 = "http://www.theflowerfields.com/visitor-information/"
+
+#Test 0: Connect
+os.system("curl -x " + proxy + ":" + port + " " + url0 + " > out.html")
+os.system("curl " + url0 + " > real.html")
+os.system("diff real.html out.html")
+# os.system("rm real out")
+
+sys.exit()
 
 #Test 1: Text Based Files
 os.system("curl -s " + url1 + " > real")
