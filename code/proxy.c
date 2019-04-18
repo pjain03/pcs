@@ -43,7 +43,7 @@ int main(int argc, char **argv) {
     // we require a port to listen on
     if (argc < 2) {
         error_out("Incorrect number of arguments!\n"
-                  "Usage: ./proxy <port number>");
+                  "Usage: ./proxy <port number> <eviction policy>");
     }
 
     // important variables
@@ -55,6 +55,7 @@ int main(int argc, char **argv) {
     char buffer[BUFFER_SIZE];
     fd_set master, readfds;
     struct timeval tv;
+    init_cache(argv[2]);
 
     // setup server
     port_num = atoi(argv[1]);
@@ -76,7 +77,7 @@ int main(int argc, char **argv) {
             error_out("Select errored out!");
         } else if (n == 0) {
             error_declare("TODO: Handle Timeout!");
-            break;
+            //break;
         } else {
             handle_activity(&master, &readfds, &max_fd, proxy, buffer);
         }
@@ -88,6 +89,7 @@ int main(int argc, char **argv) {
     }
     FD_ZERO(&readfds);
     FD_ZERO(&master);
+    destroy_cache();
     close(proxy);
     exit(EXIT_SUCCESS);
 }
