@@ -7,7 +7,7 @@ import time
 
 #os.system
 port = sys.argv[1]
-proxy = "comp112-02.cs.tufts.edu"
+proxy = "comp112-03.cs.tufts.edu"
 url1 = "http://www.cs.cmu.edu/~prs/bio.html"
 url2 = "http://fossilinsects.myspecies.info/"
 url3 = "http://portquiz.net:8080/"

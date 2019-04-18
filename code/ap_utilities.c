@@ -65,6 +65,32 @@ int connect_to_server(char *hostname, int port_num) {
 }
 
 
+int header_not_completed(char *raw, int raw_len) {
+    /* Returns 0 if request stored in raw was completed and 1 if not */
+
+    // - header complete when last chars read are CRLF2 or CRCR or LFLF
+    //   (CRLF2, CRCR, LFLF are defined in the header file)
+    // - we check the above by string comparing the last chars to them. this
+    //   means, if the last chars are CRLF2 then strcmp == 0, hdr_togo = 0
+    //          if the last chars are CRCR then strcmp == 0, hdr_togo = 0
+    //          if the last chars are LFLF then strcmp == 0, hdr_togo = 0
+    //  if any of the above cases are hit, hdr_togo must be 0. therefore, we
+    //  && the cases together.
+
+    int hdr_togo = 0;
+
+    if (raw_len >= strlen(CRLF2)) {
+        hdr_togo = strncmp(raw + raw_len - strlen(CRLF2), CRLF2, strlen(CRLF2));
+    } else if (raw_len >= strlen(CRCR)) {
+        hdr_togo &= strncmp(raw + raw_len - strlen(CRCR), CRCR, strlen(CRCR));
+    } else if (raw_len >= strlen(LFLF)) {
+        hdr_togo &= strncmp(raw + raw_len - strlen(LFLF), LFLF, strlen(LFLF));
+    }
+
+    return hdr_togo;
+}
+
+
 int read_all(int sockfd, char **raw_ptr) {
     /* Read until we fail/communication ends abruptly, returns NULL */
 
@@ -125,15 +151,6 @@ int read_hdr(int sockfd, char **raw_ptr) {
     }
     bzero(buffer, BUFFER_SIZE);
 
-    // read until fail/communication interrupted/header complete
-    // - header complete when last chars read are CRLF2 or CRCR or LFLF
-    //   (CRLF2, CRCR, LFLF are defined in the header file)
-    // - we check the above by string comparing the last chars to them. this
-    //   means, if the last chars are CRLF2 then strcmp == 0, hdr_togo = 0
-    //          if the last chars are CRCR then strcmp == 0, hdr_togo = 0
-    //          if the last chars are LFLF then strcmp == 0, hdr_togo = 0
-    //  if any of the above cases are hit, hdr_togo must be 0. therefore, we
-    //  && the cases together.
     do {
         last_read = read(sockfd, buffer, buf_size);
         if (last_read > 0) {
@@ -141,11 +158,7 @@ int read_hdr(int sockfd, char **raw_ptr) {
             memcpy(raw + readlen, buffer, last_read);
             readlen += last_read;
         }
-        if (readlen >= sizeof(CRLF2)) {
-            hdr_togo = strncmp(raw + readlen - strlen(CRLF2), CRLF2, strlen(CRLF2)) &&
-                       strncmp(raw + readlen - strlen(CRCR), CRCR, strlen(CRCR)) &&
-                       strncmp(raw + readlen - strlen(LFLF), LFLF, strlen(LFLF));
-        }
+        hdr_togo = header_not_completed(raw, readlen);
         bzero(buffer, buf_size);
     } while (last_read > 0 && hdr_togo);
 
@@ -560,8 +573,6 @@ int write_to_socket(int sockfd, char *buffer, int buffer_length) {
         error_declare("Couldn't write to the socket!");
     }
 
-    printf("WROTE %d bytes\n", writelen);
-
     return writelen;
 }
 
@@ -681,5 +692,130 @@ int construct_response(HTTPResponse *response, char **raw_ptr) {
     return response_length;
 }
 
+
+int read_sockfd(int sockfd, char *buffer, Connection *connection) {
+    /* Reads from the socket and stores it in the partial buffer of the
+     * connection */
+
+    int last_read = 0;
+    bzero(buffer, BUFFER_SIZE);
+
+    if ((last_read = read(sockfd, buffer, BUFFER_SIZE)) < 0) {
+        error_declare("Couldn't read from client socket!");
+        return -1;
+    }
+
+    if (last_read > 0) {
+        if ((connection->raw = (char *) realloc(connection->raw,
+                connection->read_len + last_read)) == NULL) {
+            error_declare("Couldn't realloc!");
+            clear_connection(connection);
+            return -1;
+        }
+        memcpy(connection->raw + connection->read_len, buffer, last_read);
+        connection->read_len += last_read;
+    }
+
+    return last_read;
+}
+
+
+int accept_client(int proxy) {
+    /* Accepts a new client and returns its sockfd */
+    
+    int sockfd;
+    struct sockaddr_in address;
+    socklen_t addr_len = sizeof(address);
+
+    if ((sockfd = accept(proxy, (struct sockaddr*) &address, &addr_len)) < 0) {
+        error_declare("Server cannot accept incoming connections!");
+    }
+
+    return sockfd;
+}
+
+
+int add_client(int proxy, Connection **connection_list) {
+    /* Adds client to connection_list */
+
+    int n;
+
+    if ((n = accept_client(proxy)) < 0) {
+        error_declare("Cannot accept client!");
+    } else {
+        n = add_connection(n, connection_list);
+    }
+    
+    printf("Accepted %d\n", n);
+
+    return n;
+}
+
+
+int add_connection(int sockfd, Connection **connection_list) {
+    /* Adds connection to our connection list
+     * NOTE: -1 means we couldn't add to our connection list */
+
+    Connection *connection;
+
+    if ((connection = (Connection *) malloc(sizeof(Connection))) == NULL) {
+        error_declare("Couldn't malloc!");
+        return -1;
+    }
+    connection->req_sockfd = sockfd;
+    connection->resp_sockfd = -1;
+    connection->raw = NULL;
+    connection->read_len = 0;
+    connection->got_header = 0;
+    connection->request = NULL;
+    connection->response = NULL;
+    HASH_ADD_INT(*connection_list, req_sockfd, connection);
+
+    return sockfd;
+}
+
+
+void remove_connection(int sockfd, Connection **connection_list) {
+    /* Removes client from the connection_list
+     * - Calls clear_connection which closes the socket connection for that
+     *   client */
+
+    Connection *connection = search_connection(sockfd, connection_list);
+    if (connection != NULL) {
+        HASH_DEL(*connection_list, connection);
+        clear_connection(connection);
+    }
+}
+
+
+Connection *search_connection(int sockfd, Connection **connection_list) {
+    /* Searches for client and returns its ID from connection_list */
+
+    Connection *connection;
+    HASH_FIND_INT(*connection_list, &sockfd, connection);
+    return connection;
+}
+
+
+void clear_connection(Connection *connection) {
+    /* Closes the socket connection and deletes all data associated with it */
+
+    if (connection) {
+        close(connection->req_sockfd);
+        // see if we need to close resp_sockfd
+        if (connection->raw) {
+            free(connection->raw);
+            connection->raw = NULL;
+        }
+        if (connection->request) {
+            free_request(connection->request);
+        }
+        if (connection->response) {
+            free_response(connection->response);
+        }
+        free(connection);
+        connection = NULL;
+    }
+}
 
 
