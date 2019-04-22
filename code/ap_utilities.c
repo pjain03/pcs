@@ -77,14 +77,15 @@ int header_not_completed(char *raw, int raw_len) {
     //  if any of the above cases are hit, hdr_togo must be 0. therefore, we
     //  && the cases together.
 
-    int hdr_togo = 0;
+    int hdr_togo = 1;
+    char *tmp;
 
-    if (raw_len >= strlen(CRLF2)) {
-        hdr_togo = strncmp(raw + raw_len - strlen(CRLF2), CRLF2, strlen(CRLF2));
-    } else if (raw_len >= strlen(CRCR)) {
-        hdr_togo &= strncmp(raw + raw_len - strlen(CRCR), CRCR, strlen(CRCR));
-    } else if (raw_len >= strlen(LFLF)) {
-        hdr_togo &= strncmp(raw + raw_len - strlen(LFLF), LFLF, strlen(LFLF));
+    if ((tmp = strstr(raw, CRLF2)) != NULL) {
+        hdr_togo &= 0;
+    } else if ((tmp = strstr(raw, CRCR)) != NULL) {
+        hdr_togo &= 0;
+    } else if ((tmp = strstr(raw, LFLF)) != NULL) {
+        hdr_togo &= 0;
     }
 
     return hdr_togo;
@@ -302,12 +303,12 @@ void display_response(HTTPResponse *response) {
             printf("%32s: %s\n", hdr->name, hdr->value);
         }
         // Not printing out message body, clogging up terminal
-       /* printf("Message Body:");
+        printf("Message Body:");
         if (response->body_length) {
-            printf("\n%.*s\n\n", response->body_length, response->body);
+            printf("\n%d\n\n", response->total_body_length);
         } else {
             printf(" EMPTY\n\n"); 
-        } */
+        }
     }
 }
 
@@ -550,12 +551,14 @@ HTTPResponse *parse_response(int length, char *raw) {
     }
 
     // set the body
-    response->body_length = length - offset;
-    if ((response->body = (char *) malloc(response->body_length)) == NULL) {
-        free_response(response);
-        error_out("Couldn't malloc!");
+    response->total_body_length = atoi(get_hdr_value(response->hdrs, CONTENT_LENGTH));
+    printf("BODY_LEN: %d\n", response->total_body_length);
+    response->body = NULL;
+    if (length - offset) {
+        response->body = (char *) malloc(length - offset);
+        memcpy(response->body, raw + length - offset, length - offset);
     }
-    memcpy(response->body, raw, response->body_length);
+    response->body_length = length - offset;
 
     // set the fetch time
     response->time_fetched = time(NULL);
@@ -776,9 +779,7 @@ int add_connection(int sockfd, Connection **connection_list) {
 
 
 void remove_connection(int sockfd, Connection **connection_list) {
-    /* Removes client from the connection_list
-     * - Calls clear_connection which closes the socket connection for that
-     *   client */
+    /* Removes client from the connection_list */
 
     Connection *connection = search_connection(sockfd, connection_list);
     if (connection != NULL) {
@@ -801,8 +802,6 @@ void clear_connection(Connection *connection) {
     /* Closes the socket connection and deletes all data associated with it */
 
     if (connection) {
-        close(connection->req_sockfd);
-        // see if we need to close resp_sockfd
         if (connection->raw) {
             free(connection->raw);
             connection->raw = NULL;

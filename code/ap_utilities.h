@@ -84,6 +84,7 @@ typedef struct HTTPResponse {
     char *status_desc;
     HTTPHeader *hdrs;
     int body_length;
+    int total_body_length;
     char *body;
     time_t time_fetched;
 } HTTPResponse;

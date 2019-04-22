@@ -27,12 +27,11 @@
 int setup_server(int port_num);
 int handle_client(int client, int proxy, char *buffer, Connection **connection_list,
                   int *max_fd, fd_set *master);
-int handle_request(Connection *connection, Connection **connection_list,
-                   int *max_fd, fd_set *master, int last_read);
 int handle_new_connection(int proxy);
 int send_get_to_server(Connection *connection);
 void add_select(int sockfd, int *max_fd, fd_set *master);
-void setup_get_server(int server, Connection **connection_list);
+void setup_get_server(int server, Connection *client_connection,
+                      Connection **connection_list);
 void handle_connect(int client, int server, HTTPRequest *request);
 void handle_activity(fd_set *master, fd_set *readfds, int *max_fd, int proxy,
                      char *buffer, Connection **connection_list);
@@ -73,16 +72,16 @@ int main(int argc, char **argv) {
     max_fd = proxy;
     tv.tv_sec = TIMEOUT_INTERVAL;
     tv.tv_usec = TIMEOUT_INTERVAL;
+    printf("PROXY: %d\n", proxy);
 
     // start waiting for clients to connect
     while (1) {
         FD_ZERO(&readfds);
         memcpy(&readfds, &master, sizeof(master));
-        if ((n = select(max_fd + 1, &readfds, NULL, NULL, &tv)) == -1) {
+        if ((n = select(max_fd + 1, &readfds, NULL, NULL, NULL)) == -1) {
             error_out("Select errored out!");
         } else if (n == 0) {
             error_declare("TODO: Handle Timeout!");
-            break;
         } else {
             handle_activity(&master, &readfds, &max_fd, proxy, buffer, &connection_list);
         }
@@ -133,25 +132,6 @@ void handle_activity(fd_set *master, fd_set *readfds, int *max_fd, int proxy,
                      char *buffer, Connection **connection_list) {
     /* Handles client requests */
 
-    // TODO: handle activity on an existing connection.
-    //    so far, we are not handling persistent connections. we simply
-    //    accept a client, handle their request, and close that
-    //    connection. when we do make connections persistent, we will
-    //    need to handle the case where 'i != proxy'. we will also need
-    //    to update our 'master' and 'max_fd' variables then (in the
-    //    'i == proxy' part). we might also have to keep track of every
-    //    persistent connection we have
-    //
-    //          Replace the following:
-    //    - handle_new_connection
-    //
-    //          Correct the following:
-    //    - handle_get
-    //    - handle_connect
-    //
-    //          Edit the following structures:
-    //    - Request/Response should be able to handle partial messages
-
     int n = 0;
 
     // if there are multiple such proxies being used in the user's environment,
@@ -172,11 +152,13 @@ void handle_activity(fd_set *master, fd_set *readfds, int *max_fd, int proxy,
             } else {
                 if ((n = handle_client(i, proxy, buffer, connection_list,
                                        max_fd, master)) <= 0) {
+                    printf("Removing %d\n", i);
 
                     // We either errored out or finished our conversation.
                     // This is cleanup.
                     FD_CLR(i, master);
                     remove_connection(i, connection_list);
+                    close(i);
                 }
             }
         }
@@ -187,75 +169,71 @@ void handle_activity(fd_set *master, fd_set *readfds, int *max_fd, int proxy,
 int handle_client(int sockfd, int proxy, char *buffer, Connection **connection_list,
                   int *max_fd, fd_set *master) {
     /* Handles client */
+    // TODO: Adapt this to handle POST at some point (requires more thought)
+    //       for now we are assuming that all requests we handle will be
+    //       terminated with two CRLFs (i.e. only GET and CONNECT)
 
     int last_read = -1;
     Connection *connection = search_connection(sockfd, connection_list);
 
     // read from the sockfd
     last_read = read_sockfd(sockfd, buffer, connection);
-
     printf("Reading %d bytes from %d\n", last_read, sockfd);
 
     // parse read from the sockfd
-    // NOTE: last_read <= 0 means the socket closed (with or without error)
     if (last_read > 0) {
 
-        // TODO: Adapt this to handle POST at some point (requires more thought)
-        //       for now we are assuming that all requests we handle will be
-        //       terminated with two CRLFs (i.e. only GET and CONNECT)
-        //       - Handle CONNECT
-        if (!header_not_completed(connection->raw, connection->read_len)) {
+        // if we have method stored, handle appropriately
+        if (connection->request) {
             if (!connection->got_header) {
-                last_read = handle_request(connection, connection_list, max_fd,
-                                           master, last_read);
+                if (!header_not_completed(connection->raw, connection->read_len)) {
+                    connection->got_header = 1;
+                    connection->response = parse_response(connection->read_len, connection->raw);
+                    // display_response(connection->response);
+                    write_to_socket(connection->resp_sockfd, connection->raw, connection->read_len);
+                    free(connection->raw);
+                    connection->raw = NULL;
+                    connection->read_len = 0;
+                }
+            } else if (connection->request->method == GET) {
+                printf("GET response!\n");
+                if (connection->response->body_length < connection->response->total_body_length) {
+                    connection->response->body = (char *) realloc(connection->response->body, connection->response->body_length + last_read);
+                    memcpy(connection->response->body + connection->response->body_length, connection->raw, last_read);
+                    connection->response->body_length += last_read;
+                    write_to_socket(connection->resp_sockfd, connection->raw, connection->read_len);
+                    free(connection->raw);
+                    connection->raw = NULL;
+                    connection->read_len = 0;
+                    printf("%d pending\n", connection->response->total_body_length - connection->response->body_length);
+                }
+                if (connection->response->body_length >= connection->response->total_body_length) {
+                    printf("Closing %d\n", connection->req_sockfd);
+                    last_read = 0;
+                }
+            } else if (connection->request->method == CONNECT) {
+                printf("CONNECT response!\n");
+            } else {
+                printf("UNSUPPORTED response!\n");
             }
-            printf("%d\n", connection->request->method);
+        } else if (!connection->got_header) {
+            // otherwise if we haven't got header and we now have a header, store header
+            // parse details out and act on them
 
-            // free the raw data
-            connection->read_len = 0;
-            free(connection->raw);
-            connection->raw = NULL;
-        }
-    }
-
-    return last_read;
-}
-
-
-int handle_request(Connection *connection, Connection **connection_list,
-                   int *max_fd, fd_set *master, int last_read) {
-    
-    int response_len = 0, server = 0;
-    char *response = NULL;
-
-    // move raw data to request
-    connection->request = parse_request(connection->read_len, connection->raw);
-    display_request(connection->request);
-    connection->got_header = 1;
-
-    // handle GET
-    if (connection->request->method == GET) {
-        printf("GET\n");
-        
-        // fetch response from cache
-        connection->response = get_data_from_cache(connection->request->url);
-        if (connection->response == NULL) {
-
-            // if not found, start talking to the server
-            if ((server = send_get_to_server(connection)) < 0) {
-                last_read = -1;
+            if (!header_not_completed(connection->raw, connection->read_len)) {
+                connection->got_header = 1;
+                connection->request = parse_request(connection->read_len, connection->raw);
+                // display_request(connection->request);
+                if (connection->request->method == GET) {
+                    int server = send_get_to_server(connection);
+                    add_connection(server, connection_list);
+                    add_select(server, max_fd, master);
+                    setup_get_server(server, connection, connection_list);
+                }
             }
-
-            // track connection responses
-            add_connection(server, connection_list);
-            add_select(server, max_fd, master);
-            setup_get_server(server, connection_list);
-        } else {
-
-            // if found, send response to client from cache
-            response_len = construct_response(connection->response, &response);
-            write_to_socket(connection->req_sockfd, response, response_len);
         }
+
+        // otherwise continue
     }
 
     return last_read;
@@ -272,13 +250,15 @@ void add_select(int sockfd, int *max_fd, fd_set *master) {
 }
 
 
-void setup_get_server(int server, Connection **connection_list) {
+void setup_get_server(int server, Connection *client_connection,
+                      Connection **connection_list) {
     /* Setup server so we can respond as to GET */
 
     Connection *connection = search_connection(server, connection_list);
 
     if (connection != NULL) {
-        connection->got_header = 1;
+        connection->resp_sockfd = client_connection->req_sockfd;
+        connection->request = client_connection->request;
     }
 }
 

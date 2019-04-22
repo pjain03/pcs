@@ -7,7 +7,8 @@ import time
 
 #os.system
 port = sys.argv[1]
-proxy = "comp112-03.cs.tufts.edu"
+proxy = "comp112-02.cs.tufts.edu"
+url0 = "https://www.google.com"
 url1 = "http://www.cs.cmu.edu/~prs/bio.html"
 url2 = "http://fossilinsects.myspecies.info/"
 url3 = "http://portquiz.net:8080/"
@@ -15,9 +16,11 @@ url4 = "http://www.arcanedomain.com/Noahhead.jpg"
 url5 = "http://www.theflowerfields.com/visitor-information/"
 
 #Test 1: Text Based Files
-os.system("curl -s " + url1 + " > real")
-os.system("curl -s -x " + proxy + ":" + port + " " + url1 + " > ours")
+os.system("curl -s " + url1 + " > real.html")
+os.system("curl -s -x " + proxy + ":" + port + " " + url1 + " > ours.html")
+os.system("diff real.html ours.html")
 
+sys.exit()
 
 if (os.system("diff real ours") == 0):
     print ("--------- TEST 1 (Text file diff) PASSED --------")
