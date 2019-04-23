@@ -91,13 +91,13 @@ typedef struct HTTPResponse {
 
 typedef struct Connection {
     /* We will map sockfd to this other data */
-    int req_sockfd; // key
-    int resp_sockfd;
+    int requesting_sockfd; // key
+    int target_sockfd;
     char *raw;
     int read_len;
-    int got_header;
+    // int got_header;
     HTTPRequest *request;
-    HTTPResponse *response;
+    // HTTPResponse *response;
 	UT_hash_handle hh;
 } Connection;
 
@@ -109,9 +109,13 @@ void error_out(const char *msg);
 void error_declare(const char *msg);
 
 int add_client(int proxy, Connection **connection_list);
-int add_connection(int sockfd, Connection **connection_list);
+int add_server(int proxy, int client, HTTPRequest *request,
+               Connection **connection_list);
+int add_client_connection(int requesting_sockfd, Connection **connection_list);
+int add_server_connection(int requesting_sockfd, int target_sockfd,
+                          HTTPRequest *request, Connection **connection_list);
 void clear_connection(Connection *connection);
-void remove_connection(int sockfd, Connection **connection_list);
+void remove_connection(int sockfd, fd_set *master, Connection **connection_list);
 Connection *search_connection(int sockfd, Connection **connection_list);
 
 int accept_client(int proxy);

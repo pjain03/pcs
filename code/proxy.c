@@ -28,7 +28,6 @@ int setup_server(int port_num);
 int handle_client(int client, int proxy, char *buffer, Connection **connection_list,
                   int *max_fd, fd_set *master);
 int handle_new_connection(int proxy);
-int send_get_to_server(Connection *connection);
 void add_select(int sockfd, int *max_fd, fd_set *master);
 void setup_get_server(int server, Connection *client_connection,
                       Connection **connection_list);
@@ -152,17 +151,15 @@ void handle_activity(fd_set *master, fd_set *readfds, int *max_fd, int proxy,
             } else {
                 if ((n = handle_client(i, proxy, buffer, connection_list,
                                        max_fd, master)) <= 0) {
-                    printf("Removing %d\n", i);
 
                     // We either errored out or finished our conversation.
                     // This is cleanup.
-                    FD_CLR(i, master);
-                    remove_connection(i, connection_list);
-                    close(i);
+                    remove_connection(i, master, connection_list);
                 }
             }
         }
     }
+    printf("--\n");
 }
 
 
@@ -182,58 +179,55 @@ int handle_client(int sockfd, int proxy, char *buffer, Connection **connection_l
 
     // parse read from the sockfd
     if (last_read > 0) {
+        if (connection->target_sockfd < 0) {
 
-        // if we have method stored, handle appropriately
-        if (connection->request) {
-            if (!connection->got_header) {
-                if (!header_not_completed(connection->raw, connection->read_len)) {
-                    connection->got_header = 1;
-                    connection->response = parse_response(connection->read_len, connection->raw);
-                    // display_response(connection->response);
-                    write_to_socket(connection->resp_sockfd, connection->raw, connection->read_len);
-                    free(connection->raw);
-                    connection->raw = NULL;
-                    connection->read_len = 0;
-                }
-            } else if (connection->request->method == GET) {
-                printf("GET response!\n");
-                if (connection->response->body_length < connection->response->total_body_length) {
-                    connection->response->body = (char *) realloc(connection->response->body, connection->response->body_length + last_read);
-                    memcpy(connection->response->body + connection->response->body_length, connection->raw, last_read);
-                    connection->response->body_length += last_read;
-                    write_to_socket(connection->resp_sockfd, connection->raw, connection->read_len);
-                    free(connection->raw);
-                    connection->raw = NULL;
-                    connection->read_len = 0;
-                    printf("%d pending\n", connection->response->total_body_length - connection->response->body_length);
-                }
-                if (connection->response->body_length >= connection->response->total_body_length) {
-                    printf("Closing %d\n", connection->req_sockfd);
-                    last_read = 0;
-                }
-            } else if (connection->request->method == CONNECT) {
-                printf("CONNECT response!\n");
-            } else {
-                printf("UNSUPPORTED response!\n");
-            }
-        } else if (!connection->got_header) {
-            // otherwise if we haven't got header and we now have a header, store header
-            // parse details out and act on them
-
+            // communication hasn't started between client and server
             if (!header_not_completed(connection->raw, connection->read_len)) {
-                connection->got_header = 1;
+
                 connection->request = parse_request(connection->read_len, connection->raw);
-                // display_request(connection->request);
-                if (connection->request->method == GET) {
-                    int server = send_get_to_server(connection);
-                    add_connection(server, connection_list);
+                display_request(connection->request);
+                int server = add_server(proxy, sockfd, connection->request, connection_list);
+
+                if (server > 0) {
+                    // TODO: handle CONNECT
                     add_select(server, max_fd, master);
-                    setup_get_server(server, connection, connection_list);
+                    if (connection->request->method == GET) {
+                        last_read = write_to_socket(server, connection->raw, connection->read_len);
+                    } else {
+                        error_declare("Unsupported request!");
+                        last_read = -1;
+                    }
+                } else {
+                    // removes client in case of error
+                    last_read = -1;
                 }
+
+                // clear out buffer
+                free(connection->raw);
+                connection->raw = NULL;
+                connection->read_len = 0;
+            }
+        } else {
+
+            // communication is underway (target_fd being set means that a
+            // valid request was received, and communication can now start)
+            if (connection->request->method == GET) {
+
+                // handle GET
+                int offset = connection->read_len - last_read;
+                write_to_socket(connection->target_sockfd,
+                                connection->raw + offset, last_read);
+
+                // TODO:
+                // - parse response header
+                //      - write based on content length
+                // - caching
+                // - freeing the buffer
+            } else {
+                error_declare("Unsupported response!");
+                last_read = -1;
             }
         }
-
-        // otherwise continue
     }
 
     return last_read;
@@ -247,56 +241,6 @@ void add_select(int sockfd, int *max_fd, fd_set *master) {
     if (*max_fd < sockfd) {
         *max_fd = sockfd;
     }
-}
-
-
-void setup_get_server(int server, Connection *client_connection,
-                      Connection **connection_list) {
-    /* Setup server so we can respond as to GET */
-
-    Connection *connection = search_connection(server, connection_list);
-
-    if (connection != NULL) {
-        connection->resp_sockfd = client_connection->req_sockfd;
-        connection->request = client_connection->request;
-    }
-}
-
-
-int send_get_to_server(Connection *connection) {
-    /* Handles the GET pipeline
-     * Return -1 if failure */
-
-    int server, write_len;
-
-    // connect to server
-    if ((server = connect_to_server(connection->request->host,
-                               connection->request->port)) > 0) {
-        // write request to server
-        if ((write_len = write_to_socket(server, connection->raw, connection->read_len))
-                 < 0) {
-            return write_len;
-        }
-        connection->resp_sockfd = server;
-        printf("Wrote %d bytes %d->%d\n", write_len, connection->resp_sockfd, connection->req_sockfd);
-    }
-    
-    return server;
-
-    // write response to client
-
-    // int response_length = 0, write_length = 0;
-    // char *raw_response = NULL;
-    // HTTPResponse *response = response;
-    // write_length = write_to_socket(server, raw_request, request_length);
-
-    // if ((response_length = read_all(server, &raw_response)) != -1) {
-    //     response = parse_response(response_length, raw_response);
-    //     display_response(response);
-    //     add_data_to_cache(request->url, response);
-    //     write_length = write_to_socket(client, raw_response,
-    //                                     response_length);
-    // }
 }
 
 

@@ -746,16 +746,34 @@ int add_client(int proxy, Connection **connection_list) {
     if ((n = accept_client(proxy)) < 0) {
         error_declare("Cannot accept client!");
     } else {
-        n = add_connection(n, connection_list);
+        n = add_client_connection(n, connection_list);
     }
     
-    printf("Accepted %d\n", n);
+    printf("Accepted client %d\n", n);
 
     return n;
 }
 
 
-int add_connection(int sockfd, Connection **connection_list) {
+int add_server(int proxy, int client, HTTPRequest *request,
+               Connection **connection_list) {
+    /* Adds server to connection_list */
+
+    int n;
+
+    if ((n = connect_to_server(request->host, request->port)) < 0) {
+        error_declare("Cannot connect to the server!");
+    } else {
+        n = add_server_connection(n, client, request, connection_list);
+    }
+    
+    printf("Added server %d\n", n);
+
+    return n;
+}
+
+
+int add_client_connection(int requesting_sockfd, Connection **connection_list) {
     /* Adds connection to our connection list
      * NOTE: -1 means we couldn't add to our connection list */
 
@@ -765,26 +783,71 @@ int add_connection(int sockfd, Connection **connection_list) {
         error_declare("Couldn't malloc!");
         return -1;
     }
-    connection->req_sockfd = sockfd;
-    connection->resp_sockfd = -1;
+    connection->requesting_sockfd = requesting_sockfd;
+    connection->target_sockfd = -1;
     connection->raw = NULL;
     connection->read_len = 0;
-    connection->got_header = 0;
+    // connection->got_header = 0;
     connection->request = NULL;
-    connection->response = NULL;
-    HASH_ADD_INT(*connection_list, req_sockfd, connection);
+    // connection->response = NULL;
+    HASH_ADD_INT(*connection_list, requesting_sockfd, connection);
 
-    return sockfd;
+    return requesting_sockfd;
 }
 
 
-void remove_connection(int sockfd, Connection **connection_list) {
+int add_server_connection(int requesting_sockfd, int target_sockfd,
+                          HTTPRequest *request, Connection **connection_list) {
+    /* Adds connection to our connection list
+     * NOTE: -1 means we couldn't add to our connection list */
+
+    Connection *connection;
+
+    if ((connection = (Connection *) malloc(sizeof(Connection))) == NULL) {
+        error_declare("Couldn't malloc!");
+        return -1;
+    }
+    connection->requesting_sockfd = requesting_sockfd;
+    connection->target_sockfd = target_sockfd;
+    connection->raw = NULL;
+    connection->read_len = 0;
+    // connection->got_header = 0;
+    connection->request = request;
+    // connection->response = NULL;
+    HASH_ADD_INT(*connection_list, requesting_sockfd, connection);
+
+    Connection *client_connection = search_connection(target_sockfd,
+                                                      connection_list);
+    client_connection->target_sockfd = requesting_sockfd;
+
+    return requesting_sockfd;
+}
+
+
+void remove_connection(int sockfd, fd_set *master, Connection **connection_list) {
     /* Removes client from the connection_list */
 
     Connection *connection = search_connection(sockfd, connection_list);
+
     if (connection != NULL) {
+
+        // Remove the target connection to avoid any future 1-sided communication
+        Connection *target = search_connection(connection->target_sockfd,
+                                               connection_list);
+        if (target != NULL) {
+            HASH_DEL(*connection_list, target);
+            clear_connection(target);
+            FD_CLR(connection->target_sockfd, master);
+            close(connection->target_sockfd);
+            printf("Removing %d\n", connection->target_sockfd);
+        }
+
+        // Now we can remove the intended connection safely
         HASH_DEL(*connection_list, connection);
         clear_connection(connection);
+        FD_CLR(sockfd, master);
+        close(sockfd);
+        printf("Removing %d\n", sockfd);
     }
 }
 
@@ -809,9 +872,9 @@ void clear_connection(Connection *connection) {
         if (connection->request) {
             free_request(connection->request);
         }
-        if (connection->response) {
-            free_response(connection->response);
-        }
+        // if (connection->response) {
+        //     free_response(connection->response);
+        // }
         free(connection);
         connection = NULL;
     }

@@ -18,18 +18,17 @@ url5 = "http://www.theflowerfields.com/visitor-information/"
 #Test 1: Text Based Files
 os.system("curl -s " + url1 + " > real.html")
 os.system("curl -s -x " + proxy + ":" + port + " " + url1 + " > ours.html")
-os.system("diff real.html ours.html")
 
-sys.exit()
+# sys.exit()
 
-if (os.system("diff real ours") == 0):
+if (os.system("diff real.html ours.html") == 0):
     print ("--------- TEST 1 (Text file diff) PASSED --------")
 else:
     print ("--------- TEST 1 (Test file diff) FAILED --------")
 
 
-os.system("rm real")
-os.system("rm ours")
+os.system("rm real.html")
+os.system("rm ours.html")
 
 #Test 2: JPG files
 
