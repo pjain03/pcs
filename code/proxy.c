@@ -192,29 +192,36 @@ int handle_client(int sockfd, int proxy, char *buffer, Connection **connection_l
                 connection->request = parse_request(connection->read_len, connection->raw);
                 display_request(connection->request);
 
-                
+                if ((connection->response = get_data_from_cache(connection->request->url)) != NULL) {
+                    // Data was found in the cache
+                    char *raw_data;
+                    int raw_data_len = 0;
+                    raw_data_len = construct_response(connection->response, &raw_data);
+                    write_to_socket(sockfd, raw_data, raw_data_len);
+                    last_read = 0;
+                } else {
+                    int server = add_server(proxy, sockfd, connection->request, connection_list);
 
-                int server = add_server(proxy, sockfd, connection->request, connection_list);
-
-                if (server > 0) {
-                    // TODO: handle CONNECT
-                    add_select(server, max_fd, master);
-                    if (connection->request->method == GET) {
-                        last_read = write_to_socket(server, connection->raw, connection->read_len);
+                    if (server > 0) {
+                        // TODO: handle CONNECT
+                        add_select(server, max_fd, master);
+                        if (connection->request->method == GET) {
+                            last_read = write_to_socket(server, connection->raw, connection->read_len);
+                        } else {
+                            error_declare("Unsupported request!");
+                            last_read = -1;
+                        }
                     } else {
-                        error_declare("Unsupported request!");
+                        // removes client in case of error
+                        error_declare("Couldn't add server??\n");
                         last_read = -1;
                     }
-                } else {
-                    // removes client in case of error
-                    printf("Couldn't add server??\n");
-                    last_read = -1;
-                }
 
-                // clear out buffer
-                free(connection->raw);
-                connection->raw = NULL;
-                connection->read_len = 0;
+                    // clear out buffer
+                    free(connection->raw);
+                    connection->raw = NULL;
+                    connection->read_len = 0;
+                }
             }
         } else {
 
@@ -238,6 +245,7 @@ int handle_client(int sockfd, int proxy, char *buffer, Connection **connection_l
 
                 if (connection->response->body_length == connection->response->total_body_length) {
                     display_response(connection->response);
+                    add_data_to_cache(connection->request->url, connection->response);
                 }
             } else {
                 error_declare("Unsupported response!");

@@ -13,15 +13,15 @@ url1 = "http://www.cs.cmu.edu/~prs/bio.html"
 url2 = "https://www.google.com/"
 url3 = "http://portquiz.net:8080/"
 url4 = "http://www.arcanedomain.com/Noahhead.jpg"
-url5 = "http://www.theflowerfields.com/visitor-information/"
+url5 = "www.cs.tufts.edu/comp/160/"
 
 #Test 0: Connect
-os.system("curl -x " + proxy + ":" + port + " " + url0 + " > out.html")
-os.system("curl " + url0 + " > real.html")
-os.system("diff real.html out.html")
-os.system("rm real.html out.html")
+#os.system("curl -x " + proxy + ":" + port + " " + url0 + " > out.html")
+#os.system("curl " + url0 + " > real.html")
+#os.system("diff real.html out.html")
+#os.system("rm real.html out.html")
 
-sys.exit()
+#sys.exit()
 
 #Test 1: Text Based Files
 os.system("curl -s " + url1 + " > real")
