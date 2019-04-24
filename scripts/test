@@ -45,6 +45,8 @@ else:
 os.system("rm real")
 os.system("rm ours")
 
+# sys.exit()
+
 #Test 3: Inserting and fetching from cache - test passes based on time it took to retrieve
 
 start = time.time()

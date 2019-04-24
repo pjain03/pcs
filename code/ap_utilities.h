@@ -97,7 +97,7 @@ typedef struct Connection {
     int read_len;
     // int got_header;
     HTTPRequest *request;
-    // HTTPResponse *response;
+    HTTPResponse *response;
 	UT_hash_handle hh;
 } Connection;
 

@@ -147,6 +147,8 @@ void handle_activity(fd_set *master, fd_set *readfds, int *max_fd, int proxy,
                     // one is left waiting. We do need to handle it if we
                     // cannot accept clients so we log it in accept_client.
                     add_select(n, max_fd, master);
+                } else {
+                    printf("Client wasn't accepted??\n");
                 }
             } else {
                 if ((n = handle_client(i, proxy, buffer, connection_list,
@@ -186,6 +188,9 @@ int handle_client(int sockfd, int proxy, char *buffer, Connection **connection_l
 
                 connection->request = parse_request(connection->read_len, connection->raw);
                 display_request(connection->request);
+
+                
+
                 int server = add_server(proxy, sockfd, connection->request, connection_list);
 
                 if (server > 0) {
@@ -199,6 +204,7 @@ int handle_client(int sockfd, int proxy, char *buffer, Connection **connection_l
                     }
                 } else {
                     // removes client in case of error
+                    printf("Couldn't add server??\n");
                     last_read = -1;
                 }
 
@@ -213,16 +219,23 @@ int handle_client(int sockfd, int proxy, char *buffer, Connection **connection_l
             // valid request was received, and communication can now start)
             if (connection->request->method == GET) {
 
-                // handle GET
                 int offset = connection->read_len - last_read;
                 write_to_socket(connection->target_sockfd,
                                 connection->raw + offset, last_read);
+                if (!connection->response) {
+                    if (!header_not_completed(connection->raw, connection->read_len)) {
+                        connection->response = parse_response(connection->read_len,
+                                                              connection->raw);
+                    }
+                } else {
+                    memcpy(connection->response->body + connection->response->body_length,
+                           connection->raw + offset, last_read);
+                    connection->response->body_length += last_read;
+                }
 
-                // TODO:
-                // - parse response header
-                //      - write based on content length
-                // - caching
-                // - freeing the buffer
+                if (connection->response->body_length == connection->response->total_body_length) {
+                    display_response(connection->response);
+                }
             } else {
                 error_declare("Unsupported response!");
                 last_read = -1;

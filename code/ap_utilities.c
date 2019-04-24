@@ -555,7 +555,7 @@ HTTPResponse *parse_response(int length, char *raw) {
     printf("BODY_LEN: %d\n", response->total_body_length);
     response->body = NULL;
     if (length - offset) {
-        response->body = (char *) malloc(length - offset);
+        response->body = (char *) malloc(response->total_body_length);
         memcpy(response->body, raw + length - offset, length - offset);
     }
     response->body_length = length - offset;
@@ -789,7 +789,7 @@ int add_client_connection(int requesting_sockfd, Connection **connection_list) {
     connection->read_len = 0;
     // connection->got_header = 0;
     connection->request = NULL;
-    // connection->response = NULL;
+    connection->response = NULL;
     HASH_ADD_INT(*connection_list, requesting_sockfd, connection);
 
     return requesting_sockfd;
@@ -813,7 +813,7 @@ int add_server_connection(int requesting_sockfd, int target_sockfd,
     connection->read_len = 0;
     // connection->got_header = 0;
     connection->request = request;
-    // connection->response = NULL;
+    connection->response = NULL;
     HASH_ADD_INT(*connection_list, requesting_sockfd, connection);
 
     Connection *client_connection = search_connection(target_sockfd,
@@ -839,6 +839,7 @@ void remove_connection(int sockfd, fd_set *master, Connection **connection_list)
             clear_connection(target);
             FD_CLR(connection->target_sockfd, master);
             close(connection->target_sockfd);
+            connection->request = NULL;  // so we don't double free this pointer
             printf("Removing %d\n", connection->target_sockfd);
         }
 
@@ -871,9 +872,13 @@ void clear_connection(Connection *connection) {
         }
         if (connection->request) {
             free_request(connection->request);
+            connection->request = NULL;
         }
+        // // IMPORTANT: do not free response, handling response is the cache's
+        //               business
         // if (connection->response) {
         //     free_response(connection->response);
+        //     connection->response = NULL;
         // }
         free(connection);
         connection = NULL;
