@@ -10,25 +10,33 @@ port = sys.argv[1]
 proxy = "comp112-02.cs.tufts.edu"
 url0 = "https://www.google.com"
 url1 = "http://www.cs.cmu.edu/~prs/bio.html"
-url2 = "http://fossilinsects.myspecies.info/"
+url2 = "https://www.google.com/"
 url3 = "http://portquiz.net:8080/"
 url4 = "http://www.arcanedomain.com/Noahhead.jpg"
 url5 = "http://www.theflowerfields.com/visitor-information/"
 
+#Test 0: Connect
+os.system("curl -x " + proxy + ":" + port + " " + url0 + " > out.html")
+os.system("curl " + url0 + " > real.html")
+os.system("diff real.html out.html")
+os.system("rm real.html out.html")
+
+sys.exit()
+
 #Test 1: Text Based Files
-os.system("curl -s " + url1 + " > real.html")
-os.system("curl -s -x " + proxy + ":" + port + " " + url1 + " > ours.html")
+os.system("curl -s " + url1 + " > real")
+os.system("curl -s -x " + proxy + ":" + port + " " + url1 + " > ours")
 
 # sys.exit()
 
-if (os.system("diff real.html ours.html") == 0):
-    print ("--------- TEST 1 (Text file diff) PASSED --------")
+if (os.system("diff real ours") == 0):
+    print ("--------- TEST 1 (GET Text file diff) PASSED --------")
 else:
-    print ("--------- TEST 1 (Test file diff) FAILED --------")
+    print ("--------- TEST 1 (GET Test file diff) FAILED --------")
 
 
-os.system("rm real.html")
-os.system("rm ours.html")
+os.system("rm real")
+os.system("rm ours")
 
 #Test 2: JPG files
 
@@ -37,9 +45,9 @@ os.system("curl -s -x " + proxy + ":" + port + " " + url4 + " > ours")
 
 
 if (os.system("diff real ours") == 0):
-    print ("--------- TEST 2 (JPG file diff) PASSED --------")
+    print ("--------- TEST 2 (GET JPG file diff) PASSED --------")
 else:
-    print ("--------- TEST 2 (JPG file diff) FAILED --------")
+    print ("--------- TEST 2 (GET JPG file diff) FAILED --------")
 
 
 os.system("rm real")
@@ -62,6 +70,13 @@ if (cache < noCache):
     print ("--------- TEST 3 (Insert and fetch from cache) PASSED --------")
 else:
     print ("--------- TEST 3 (Insert and fetch from cache) FAILED --------")
+
+os.system("rm temp")
+
+#Test 4: Test eviction policy
+os.system("curl -s -x " + proxy + ":" + port + " " + url5 + " > temp")
+
+print ("--------- TEST 4 (Eviction from cache assuming cache size = 3) CHECK SERVER LOGS --------")
 
 os.system("rm temp")
 

@@ -45,7 +45,7 @@ int main(int argc, char **argv) {
     // we require a port to listen on
     if (argc < 2) {
         error_out("Incorrect number of arguments!\n"
-                  "Usage: ./proxy <port number>");
+                  "Usage: ./proxy <port number> <OPTIONAL: eviction policy>");
     }
 
     // important variables
@@ -57,8 +57,10 @@ int main(int argc, char **argv) {
     char buffer[BUFFER_SIZE];
     fd_set master, readfds;
     struct timeval tv;
+
     Connection *connection_list = NULL;  /* IMPORTANT: initialize this to NULL
                                           *            - UTHash requirement */
+    init_cache(argv[2]);
 
     // setup server
     port_num = atoi(argv[1]);
@@ -92,6 +94,7 @@ int main(int argc, char **argv) {
     }
     FD_ZERO(&readfds);
     FD_ZERO(&master);
+    destroy_cache();
     close(proxy);
     exit(EXIT_SUCCESS);
 }
@@ -360,19 +363,20 @@ void handle_connect(int client, int server, HTTPRequest *request) {
                     if (i == client) {
                         last_read = read(client, buffer, BUFFER_SIZE);
                         printf("READ %d bytes from client!\n", last_read);
-                        write_to_socket(server, buffer, last_read);
+                        if (last_read >= 0) {
+                            write_to_socket(server, buffer, last_read);
+                        }
                     }
                     // server said something
                     else if (i == server) {
                         last_read = read(server, buffer, BUFFER_SIZE);
                         printf("READ %d bytes from server!\n", last_read);
-                        write_to_socket(client, buffer, last_read);
+                        if (last_read >= 0) {
+                            write_to_socket(client, buffer, last_read);
+                        }
                     }
                 }
-                if (last_read < 0) {
-                    error_declare("Select CONNECT error!");
-                    break;
-                } else if (last_read == 0) {
+                if (last_read <= 0) {
                     break;
                 }
                 bzero(buffer, BUFFER_SIZE);
