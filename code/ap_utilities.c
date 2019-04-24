@@ -58,7 +58,7 @@ int connect_to_server(char *hostname, int port_num) {
     // connect: create a connection with the server
     if (connect(sockfd, (const struct sockaddr*) &serveraddr,
                 sizeof(serveraddr)) < 0) {
-        error_out("Couldn't connect to the server!");
+        error_declare("Couldn't connect to the server!");
     }
     
     return sockfd;

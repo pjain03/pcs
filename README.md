@@ -17,5 +17,20 @@ Run the following commands:
 ## Development Notes
 
 1. NOTE: in our implementation we assume that no header will be formatted such that the lines in the header end with a LF followed by a CR. Lines may end with LF or CR or CRLF but not LFCR
-2. In our HTTPRequest and HTTPResponse we terminate all char* fields with \0 except the body field. The body field contains the data of a message and that shouldn't be tampered with because the body itself could contain a \0 character. We can use strlen on every field other than the body. This is why we store the body's length as a field in our Request and Response objects.
-3. CONNECT
+2. NOTE: In our HTTPRequest and HTTPResponse we terminate all char* fields with \0 except the body field. The body field contains the data of a message and that shouldn't be tampered with because the body itself could contain a \0 character. We can use strlen on every field other than the body. This is why we store the body's length as a field in our Request and Response objects.
+3. TODO: Making the proxy more robust, setting benchmarks (cache testing), handling memory
+    - Our proxy should be able to run on our local machines (Macbook Air) for around 30-45 minutes of regular browsing
+        - Write extensive testing scripts (~2 hours, Annie)
+            - Stress Testing
+            - Memory Benchmarking
+            - Speed Benchmarking
+        - Fixing memory stuff + making proxy robust (Annie, Pulkit)
+            - Before editing, contact the other person
+4. TODO: Search engine
+    - Set up website/proxy (~2 hours, Pulkit)
+        - Website
+            - Forms for accepting proxy, port, and search bar
+            - On submitting the form, it queries the cache (Sends a GET for the requested keywords)
+        - Proxy
+            - Handle GET to our proxy with query parameters
+    - Set up search engine functionality
