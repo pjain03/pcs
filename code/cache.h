@@ -1,7 +1,6 @@
 // Cache module
 // key = url, value = HTTPResponse
 
-#include "uthash/src/uthash.h"
 #include "ap_utilities.h"
 
 

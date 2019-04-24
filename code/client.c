@@ -46,6 +46,9 @@ int main(int argc, char **argv) {
     port_num = atoi(argv[2]);
     server = connect_to_server(hostname, port_num);
 
+    char x;
+    x = fgetc(stdin);
+
     // handle CONNECT
     write_to_socket(server, con, strlen(con));
     read(server, buffer, BUFFER_SIZE);

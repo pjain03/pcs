@@ -58,10 +58,37 @@ int connect_to_server(char *hostname, int port_num) {
     // connect: create a connection with the server
     if (connect(sockfd, (const struct sockaddr*) &serveraddr,
                 sizeof(serveraddr)) < 0) {
-        error_out("Couldn't connect to the server!");
+        error_declare("Couldn't connect to the server!");
     }
     
     return sockfd;
+}
+
+
+int header_not_completed(char *raw, int raw_len) {
+    /* Returns 0 if request stored in raw was completed and 1 if not */
+
+    // - header complete when last chars read are CRLF2 or CRCR or LFLF
+    //   (CRLF2, CRCR, LFLF are defined in the header file)
+    // - we check the above by string comparing the last chars to them. this
+    //   means, if the last chars are CRLF2 then strcmp == 0, hdr_togo = 0
+    //          if the last chars are CRCR then strcmp == 0, hdr_togo = 0
+    //          if the last chars are LFLF then strcmp == 0, hdr_togo = 0
+    //  if any of the above cases are hit, hdr_togo must be 0. therefore, we
+    //  && the cases together.
+
+    int hdr_togo = 1;
+    char *tmp;
+
+    if ((tmp = strstr(raw, CRLF2)) != NULL) {
+        hdr_togo &= 0;
+    } else if ((tmp = strstr(raw, CRCR)) != NULL) {
+        hdr_togo &= 0;
+    } else if ((tmp = strstr(raw, LFLF)) != NULL) {
+        hdr_togo &= 0;
+    }
+
+    return hdr_togo;
 }
 
 
@@ -125,15 +152,6 @@ int read_hdr(int sockfd, char **raw_ptr) {
     }
     bzero(buffer, BUFFER_SIZE);
 
-    // read until fail/communication interrupted/header complete
-    // - header complete when last chars read are CRLF2 or CRCR or LFLF
-    //   (CRLF2, CRCR, LFLF are defined in the header file)
-    // - we check the above by string comparing the last chars to them. this
-    //   means, if the last chars are CRLF2 then strcmp == 0, hdr_togo = 0
-    //          if the last chars are CRCR then strcmp == 0, hdr_togo = 0
-    //          if the last chars are LFLF then strcmp == 0, hdr_togo = 0
-    //  if any of the above cases are hit, hdr_togo must be 0. therefore, we
-    //  && the cases together.
     do {
         last_read = read(sockfd, buffer, buf_size);
         if (last_read > 0) {
@@ -141,11 +159,7 @@ int read_hdr(int sockfd, char **raw_ptr) {
             memcpy(raw + readlen, buffer, last_read);
             readlen += last_read;
         }
-        if (readlen >= sizeof(CRLF2)) {
-            hdr_togo = strncmp(raw + readlen - strlen(CRLF2), CRLF2, strlen(CRLF2)) &&
-                       strncmp(raw + readlen - strlen(CRCR), CRCR, strlen(CRCR)) &&
-                       strncmp(raw + readlen - strlen(LFLF), LFLF, strlen(LFLF));
-        }
+        hdr_togo = header_not_completed(raw, readlen);
         bzero(buffer, buf_size);
     } while (last_read > 0 && hdr_togo);
 
@@ -289,12 +303,12 @@ void display_response(HTTPResponse *response) {
             printf("%32s: %s\n", hdr->name, hdr->value);
         }
         // Not printing out message body, clogging up terminal
-       /* printf("Message Body:");
+        printf("Message Body:");
         if (response->body_length) {
-            printf("\n%.*s\n\n", response->body_length, response->body);
+            printf("\n%d\n\n", response->total_body_length);
         } else {
             printf(" EMPTY\n\n"); 
-        } */
+        }
     }
 }
 
@@ -537,12 +551,14 @@ HTTPResponse *parse_response(int length, char *raw) {
     }
 
     // set the body
-    response->body_length = length - offset;
-    if ((response->body = (char *) malloc(response->body_length)) == NULL) {
-        free_response(response);
-        error_out("Couldn't malloc!");
+    response->total_body_length = atoi(get_hdr_value(response->hdrs, CONTENT_LENGTH));
+    printf("BODY_LEN: %d\n", response->total_body_length);
+    response->body = NULL;
+    if (length - offset) {
+        response->body = (char *) malloc(response->total_body_length);
+        memcpy(response->body, raw + length - offset, length - offset);
     }
-    memcpy(response->body, raw, response->body_length);
+    response->body_length = length - offset;
 
     // set the fetch time
     response->time_fetched = time(NULL);
@@ -559,8 +575,6 @@ int write_to_socket(int sockfd, char *buffer, int buffer_length) {
     if ((writelen = write(sockfd, buffer, buffer_length)) < 0) {
         error_declare("Couldn't write to the socket!");
     }
-
-    printf("WROTE %d bytes\n", writelen);
 
     return writelen;
 }
@@ -681,5 +695,195 @@ int construct_response(HTTPResponse *response, char **raw_ptr) {
     return response_length;
 }
 
+
+int read_sockfd(int sockfd, char *buffer, Connection *connection) {
+    /* Reads from the socket and stores it in the partial buffer of the
+     * connection */
+
+    int last_read = 0;
+    bzero(buffer, BUFFER_SIZE);
+
+    if ((last_read = read(sockfd, buffer, BUFFER_SIZE)) < 0) {
+        printf("sockfd: %d ", sockfd);
+        error_declare("Couldn't read from client socket!");
+        return -1;
+    }
+
+    if (last_read > 0) {
+        if ((connection->raw = (char *) realloc(connection->raw,
+                connection->read_len + last_read)) == NULL) {
+            error_declare("Couldn't realloc!");
+            clear_connection(connection);
+            return -1;
+        }
+        memcpy(connection->raw + connection->read_len, buffer, last_read);
+        connection->read_len += last_read;
+    }
+
+    return last_read;
+}
+
+
+int accept_client(int proxy) {
+    /* Accepts a new client and returns its sockfd */
+    
+    int sockfd;
+    struct sockaddr_in address;
+    socklen_t addr_len = sizeof(address);
+
+    if ((sockfd = accept(proxy, (struct sockaddr*) &address, &addr_len)) < 0) {
+        error_declare("Server cannot accept incoming connections!");
+    }
+
+    return sockfd;
+}
+
+
+int add_client(int proxy, Connection **connection_list) {
+    /* Adds client to connection_list */
+
+    int n;
+
+    if ((n = accept_client(proxy)) < 0) {
+        error_declare("Cannot accept client!");
+    } else {
+        n = add_client_connection(n, connection_list);
+    }
+    
+    printf("Accepted client %d\n", n);
+
+    return n;
+}
+
+
+int add_server(int proxy, int client, HTTPRequest *request,
+               Connection **connection_list) {
+    /* Adds server to connection_list */
+
+    int n;
+
+    if ((n = connect_to_server(request->host, request->port)) < 0) {
+        error_declare("Cannot connect to the server!");
+    } else {
+        n = add_server_connection(n, client, request, connection_list);
+    }
+    
+    printf("Added server %d\n", n);
+
+    return n;
+}
+
+
+int add_client_connection(int requesting_sockfd, Connection **connection_list) {
+    /* Adds connection to our connection list
+     * NOTE: -1 means we couldn't add to our connection list */
+
+    Connection *connection;
+
+    if ((connection = (Connection *) malloc(sizeof(Connection))) == NULL) {
+        error_declare("Couldn't malloc!");
+        return -1;
+    }
+    connection->requesting_sockfd = requesting_sockfd;
+    connection->target_sockfd = -1;
+    connection->raw = NULL;
+    connection->read_len = 0;
+    // connection->got_header = 0;
+    connection->request = NULL;
+    connection->response = NULL;
+    HASH_ADD_INT(*connection_list, requesting_sockfd, connection);
+
+    return requesting_sockfd;
+}
+
+
+int add_server_connection(int requesting_sockfd, int target_sockfd,
+                          HTTPRequest *request, Connection **connection_list) {
+    /* Adds connection to our connection list
+     * NOTE: -1 means we couldn't add to our connection list */
+
+    Connection *connection;
+
+    if ((connection = (Connection *) malloc(sizeof(Connection))) == NULL) {
+        error_declare("Couldn't malloc!");
+        return -1;
+    }
+    connection->requesting_sockfd = requesting_sockfd;
+    connection->target_sockfd = target_sockfd;
+    connection->raw = NULL;
+    connection->read_len = 0;
+    // connection->got_header = 0;
+    connection->request = request;
+    connection->response = NULL;
+    HASH_ADD_INT(*connection_list, requesting_sockfd, connection);
+
+    Connection *client_connection = search_connection(target_sockfd,
+                                                      connection_list);
+    client_connection->target_sockfd = requesting_sockfd;
+
+    return requesting_sockfd;
+}
+
+
+void remove_connection(int sockfd, fd_set *master, Connection **connection_list) {
+    /* Removes client from the connection_list */
+
+    Connection *connection = search_connection(sockfd, connection_list);
+
+    if (connection != NULL) {
+
+        // Remove the target connection to avoid any future 1-sided communication
+        Connection *target = search_connection(connection->target_sockfd,
+                                               connection_list);
+        if (target != NULL) {
+            HASH_DEL(*connection_list, target);
+            clear_connection(target);
+            FD_CLR(connection->target_sockfd, master);
+            close(connection->target_sockfd);
+            connection->request = NULL;  // so we don't double free this pointer
+            printf("Removing %d\n", connection->target_sockfd);
+        }
+
+        // Now we can remove the intended connection safely
+        HASH_DEL(*connection_list, connection);
+        clear_connection(connection);
+        FD_CLR(sockfd, master);
+        close(sockfd);
+        printf("Removing %d\n", sockfd);
+    }
+}
+
+
+Connection *search_connection(int sockfd, Connection **connection_list) {
+    /* Searches for client and returns its ID from connection_list */
+
+    Connection *connection;
+    HASH_FIND_INT(*connection_list, &sockfd, connection);
+    return connection;
+}
+
+
+void clear_connection(Connection *connection) {
+    /* Closes the socket connection and deletes all data associated with it */
+
+    if (connection) {
+        if (connection->raw) {
+            free(connection->raw);
+            connection->raw = NULL;
+        }
+        if (connection->request) {
+            free_request(connection->request);
+            connection->request = NULL;
+        }
+        // // IMPORTANT: do not free response, handling response is the cache's
+        //               business
+        // if (connection->response) {
+        //     free_response(connection->response);
+        //     connection->response = NULL;
+        // }
+        free(connection);
+        connection = NULL;
+    }
+}
 
 

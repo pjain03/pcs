@@ -27,8 +27,10 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include "uthash/src/uthash.h"
 
 #define DEFAULT_HTTP_PORT 80
+#define MAX_CONNECTIONS 10
 #define CONTENT_LENGTH "Content-Length"
 #define BUFFER_SIZE 2048
 #define CONNECT_RQ "CONNECT"
@@ -82,9 +84,22 @@ typedef struct HTTPResponse {
     char *status_desc;
     HTTPHeader *hdrs;
     int body_length;
+    int total_body_length;
     char *body;
     time_t time_fetched;
 } HTTPResponse;
+
+typedef struct Connection {
+    /* We will map sockfd to this other data */
+    int requesting_sockfd; // key
+    int target_sockfd;
+    char *raw;
+    int read_len;
+    // int got_header;
+    HTTPRequest *request;
+    HTTPResponse *response;
+	UT_hash_handle hh;
+} Connection;
 
 
 //
@@ -93,10 +108,23 @@ typedef struct HTTPResponse {
 void error_out(const char *msg);
 void error_declare(const char *msg);
 
+int add_client(int proxy, Connection **connection_list);
+int add_server(int proxy, int client, HTTPRequest *request,
+               Connection **connection_list);
+int add_client_connection(int requesting_sockfd, Connection **connection_list);
+int add_server_connection(int requesting_sockfd, int target_sockfd,
+                          HTTPRequest *request, Connection **connection_list);
+void clear_connection(Connection *connection);
+void remove_connection(int sockfd, fd_set *master, Connection **connection_list);
+Connection *search_connection(int sockfd, Connection **connection_list);
+
+int accept_client(int proxy);
 int write_to_socket(int sockfd, char *buffer, int buffer_length);
 int connect_to_server(char *hostname, int port_num);
 int read_all(int sockfd, char **raw);
 int read_hdr(int sockfd, char **raw);
+int read_sockfd(int sockfd, char *buffer, Connection *connection);
+int header_not_completed(char *raw, int raw_len);
 
 void free_hdr(HTTPHeader *hdr);
 void free_request(HTTPRequest *request);

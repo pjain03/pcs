@@ -25,13 +25,21 @@
 // Forward Declarations
 //
 int setup_server(int port_num);
-int accept_client(int proxy);
+int handle_client(int client, int proxy, char *buffer, Connection **connection_list,
+                  int *max_fd, fd_set *master);
 int handle_new_connection(int proxy);
-void handle_get(int client, int server, HTTPRequest *request,
-                char *raw_request, int request_length);
+void add_select(int sockfd, int *max_fd, fd_set *master);
+void setup_get_server(int server, Connection *client_connection,
+                      Connection **connection_list);
+int handle_get_request(int sockfd, int proxy, int last_read, Connection *connection,
+                       Connection **connection_list, int *max_fd, fd_set *master);
+int handle_connect_request(int sockfd, int proxy, int last_read, Connection *connection,
+                           Connection **connection_list, int *max_fd, fd_set *master);
+int handle_get_response(int last_read, Connection *connection);
+int handle_connect_response(int last_read, Connection *connection);
 void handle_connect(int client, int server, HTTPRequest *request);
 void handle_activity(fd_set *master, fd_set *readfds, int *max_fd, int proxy,
-                     char *buffer);
+                     char *buffer, Connection **connection_list);
 
 
 //
@@ -43,7 +51,7 @@ int main(int argc, char **argv) {
     // we require a port to listen on
     if (argc < 2) {
         error_out("Incorrect number of arguments!\n"
-                  "Usage: ./proxy <port number> <eviction policy>");
+                  "Usage: ./proxy <port number> <OPTIONAL: eviction policy>");
     }
 
     // important variables
@@ -55,7 +63,14 @@ int main(int argc, char **argv) {
     char buffer[BUFFER_SIZE];
     fd_set master, readfds;
     struct timeval tv;
-    init_cache(argv[2]);
+
+    Connection *connection_list = NULL;  /* IMPORTANT: initialize this to NULL
+                                          *            - UTHash requirement */
+    if (argc == 2) {
+        init_cache(NULL);
+    } else {
+        init_cache(argv[2]);
+    }
 
     // setup server
     port_num = atoi(argv[1]);
@@ -68,6 +83,7 @@ int main(int argc, char **argv) {
     max_fd = proxy;
     tv.tv_sec = TIMEOUT_INTERVAL;
     tv.tv_usec = TIMEOUT_INTERVAL;
+    printf("PROXY: %d\n", proxy);
 
     // start waiting for clients to connect
     while (1) {
@@ -77,9 +93,8 @@ int main(int argc, char **argv) {
             error_out("Select errored out!");
         } else if (n == 0) {
             error_declare("TODO: Handle Timeout!");
-            //break;
         } else {
-            handle_activity(&master, &readfds, &max_fd, proxy, buffer);
+            handle_activity(&master, &readfds, &max_fd, proxy, buffer, &connection_list);
         }
     }
 
@@ -126,117 +141,217 @@ int setup_server(int port_num) {
 
 
 void handle_activity(fd_set *master, fd_set *readfds, int *max_fd, int proxy,
-                     char *buffer) {
+                     char *buffer, Connection **connection_list) {
     /* Handles client requests */
+
+    int n = 0;
 
     // if there are multiple such proxies being used in the user's environment,
     // there are no guarantees as to which file descriptor a new connection
     // will receive. therefore, we check all possible file descriptors since a
     // new connection will have a file descriptor larger than our 'max_fd', but
     // we cannot say with certainty which one.
-    for (int i = 0; i < FD_SETSIZE + 1; i++) {
+    for (int i = 0; i < *max_fd + 1; i++) {
         if (FD_ISSET(i, readfds)) {
             if (i == proxy) {
-                int client = handle_new_connection(proxy);
-                close(client);
-            }
-            // TODO: handle activity on an existing connection.
-            //    so far, we are not handling persistent connections. we simply
-            //    accept a client, handle their request, and close that
-            //    connection. when we do make connections persistent, we will
-            //    need to handle the case where 'i != proxy'. we will also need
-            //    to update our 'master' and 'max_fd' variables then (in the
-            //    'i == proxy' part). we might also have to keep track of every
-            //    persistent connection we have
-        }
-    }
-}
+                if ((n = add_client(proxy, connection_list)) > 0) {
 
-
-int handle_new_connection(int proxy) {
-    /* Handle new clients */
-    // TODO: change the entire structure, no more read_hdr, no more read_all
-    //       handling concurrent clients will require us to do things a lot
-    //       differently
-
-    int client, server, request_length = 0, response_length = 0,
-        write_length = 0;
-    char *raw_request = NULL, *raw_response = NULL;
-    HTTPRequest *request;
-    HTTPResponse *response;
-
-    // connect to the client and receive its request
-    if ((client = accept_client(proxy)) >= 0) {
-        if ((request_length = read_hdr(client, &raw_request)) != -1) {
-
-            request = parse_request(request_length, raw_request);
-            display_request(request);
-            response = get_data_from_cache(request->url);
-
-            if (response != NULL) {
-
-                // Received response from the cache, write back to client
-                response_length = construct_response(response, &raw_response);
-                write_to_socket(client, raw_response, response_length);  //TODO: see if we can refactor
+                    // Client knows if they weren't able to contact us so no
+                    // one is left waiting. We do need to handle it if we
+                    // cannot accept clients so we log it in accept_client.
+                    add_select(n, max_fd, master);
+                } else {
+                    printf("Client wasn't accepted??\n");
+                }
             } else {
+                if ((n = handle_client(i, proxy, buffer, connection_list,
+                                       max_fd, master)) <= 0) {
 
-                // Get the response from the server, cache it, and send it back to the client
-                server = connect_to_server(request->host, request->port);
-                if (request->method == GET) {
-                    printf("GET!\n");
-                    handle_get(client, server, request, raw_request,
-                               request_length);
-                } else if (request->method == CONNECT) {
-                    printf("CONNECT!\n");
-                    handle_connect(client, server, request);
+                    // We either errored out or finished our conversation.
+                    // This is cleanup.
+                    remove_connection(i, master, connection_list);
                 }
             }
+        }
+    }
+    printf("--\n");
+}
 
-            // cleanup
-            close(server);
-            free(raw_request);
-            free_request(request);
-            free(raw_response);
-            /* Don't clean up just yet - want to keep the malloc'ed data in cache.
-               Free when evict from cache.
-            free_response(response); */
+
+int handle_client(int sockfd, int proxy, char *buffer, Connection **connection_list,
+                  int *max_fd, fd_set *master) {
+    /* Handles client */
+    // TODO: Adapt this to handle POST at some point (requires more thought)
+    //       for now we are assuming that all requests we handle will be
+    //       terminated with two CRLFs (i.e. only GET and CONNECT)
+
+    int last_read = -1;
+    Connection *connection = search_connection(sockfd, connection_list);
+
+    // read from the sockfd
+    last_read = read_sockfd(sockfd, buffer, connection);
+    printf("Reading %d bytes from %d\n", last_read, sockfd);
+
+    // parse read from the sockfd
+    if (last_read > 0) {
+        if (connection->target_sockfd < 0) {
+
+            // communication hasn't started between client and server
+            if (!header_not_completed(connection->raw, connection->read_len)) {
+
+                connection->request = parse_request(connection->read_len, connection->raw);
+                display_request(connection->request);
+
+                if (connection->request->method == GET) {
+                    last_read = handle_get_request(sockfd, proxy, last_read,
+                                                   connection, connection_list,
+                                                   max_fd, master);
+                } else if (connection->request->method == CONNECT) {
+                    last_read = handle_connect_request(sockfd, proxy, last_read,
+                                                       connection, connection_list,
+                                                       max_fd, master);
+                } else {
+                    error_declare("Unsupported request!");
+                    last_read = -1;
+                }
+
+                // clear out buffer
+                free(connection->raw);
+                connection->raw = NULL;
+                connection->read_len = 0;
+            }
+        } else {
+
+            // communication is underway (target_fd being set means that a
+            // valid request was received, and communication can now start)
+            if (connection->request->method == GET) {
+                last_read = handle_get_response(last_read, connection);
+            } else if (connection->request->method == CONNECT) {
+                last_read = handle_connect_response(last_read, connection);
+            } else {
+                error_declare("Unsupported response!");
+                last_read = -1;
+            }
         }
     }
 
-    return client;
+    return last_read;
 }
 
 
-int accept_client(int proxy) {
-    /* Accepts a new client and returns its sockfd */
-    
-    int sockfd;
-    struct sockaddr_in address;
-    socklen_t addr_len = sizeof(address);
+int handle_get_request(int sockfd, int proxy, int last_read, Connection *connection,
+                       Connection **connection_list, int *max_fd, fd_set *master) {
+    /* Handles the GET request */
 
-    if ((sockfd = accept(proxy, (struct sockaddr*) &address, &addr_len)) < 0) {
-        error_declare("Server cannot accept incoming connections!");
+    if ((connection->response = get_data_from_cache(connection->request->url)) != NULL) {
+                    
+        // Data was found in the cache
+        char *raw_data;
+        int raw_data_len = 0;
+        raw_data_len = construct_response(connection->response, &raw_data);
+        write_to_socket(sockfd, raw_data, raw_data_len);
+        last_read = 0;
+    } else {
+
+        // Data wasn't found in the cache
+        int server = add_server(proxy, sockfd, connection->request, connection_list);
+        if (server > 0) {
+            add_select(server, max_fd, master);
+            last_read = write_to_socket(server, connection->raw, connection->read_len);
+        } else {
+            // removes client in case of error
+            error_declare("Couldn't add server??\n");
+            last_read = -1;
+        }
     }
 
-    return sockfd;
+    return last_read;
 }
 
 
-void handle_get(int client, int server, HTTPRequest *request,
-                char *raw_request, int request_length) {
-    /* Handles the GET pipeline */
+int handle_connect_request(int sockfd, int proxy, int last_read, Connection *connection,
+                           Connection **connection_list, int *max_fd, fd_set *master) {
+    /* Handle the CONNECT request */
 
-    int response_length = 0, write_length = 0;
-    char *raw_response = NULL;
-    HTTPResponse *response = response;
-    write_length = write_to_socket(server, raw_request, request_length);
+    int server = add_server(proxy, sockfd, connection->request, connection_list);
+    if (server > 0) {
+        add_select(server, max_fd, master);
 
-    if ((response_length = read_all(server, &raw_response)) != -1) {
-        response = parse_response(response_length, raw_response);
-        display_response(response);
-        add_data_to_cache(request->url, response);
-        write_length = write_to_socket(client, raw_response,
-                                        response_length);
+        // send 200 to client indicating we have successfully opened a tunnel to
+        // the destination server
+        char *resp = NULL;;
+        int resp_len = strlen(connection->request->version) + strlen(OK) + strlen(CRLF2);
+        if ((resp = (char *) malloc(resp_len)) == NULL) {
+            error_out("Couldn't malloc!");
+        }
+        bzero(resp, resp_len);
+        memcpy(resp, connection->request->version, strlen(connection->request->version));
+        memcpy(resp + strlen(connection->request->version), OK, strlen(OK));
+        memcpy(resp + strlen(connection->request->version) + strlen(OK), CRLF2, strlen(CRLF2));
+        last_read = write_to_socket(sockfd, resp, resp_len);
+        free(resp);
+        resp = NULL;
+    } else {
+        // removes client in case of error
+        error_declare("Couldn't add server??\n");
+        last_read = -1;
+    }
+
+    return last_read;
+}
+
+
+int handle_get_response(int last_read, Connection *connection) {
+    /* Handle the GET response */
+
+    int offset = connection->read_len - last_read;
+    write_to_socket(connection->target_sockfd,
+                    connection->raw + offset, last_read);
+    if (!connection->response) {
+        if (!header_not_completed(connection->raw, connection->read_len)) {
+            connection->response = parse_response(connection->read_len,
+                                                    connection->raw);
+        }
+    } else {
+        memcpy(connection->response->body + connection->response->body_length,
+                connection->raw + offset, last_read);
+        connection->response->body_length += last_read;
+    }
+
+    if (connection->response->body_length == connection->response->total_body_length) {
+        display_response(connection->response);
+        add_data_to_cache(connection->request->url, connection->response);
+    }
+
+    return last_read;
+}
+
+
+int handle_connect_response(int last_read, Connection *connection) {
+    /* Handle the CONNECT response */
+
+    last_read = write_to_socket(connection->target_sockfd, connection->raw,
+                                connection->read_len);
+    
+    if (last_read != connection->read_len) {
+        error_out("Last read did not match connection read len!");
+    }
+
+    // clear out buffer
+    free(connection->raw);
+    connection->raw = NULL;
+    connection->read_len = 0;
+
+    return last_read;
+}
+
+
+void add_select(int sockfd, int *max_fd, fd_set *master) {
+    /* Adds socket to the select functionality */
+
+    FD_SET(sockfd, master);
+    if (*max_fd < sockfd) {
+        *max_fd = sockfd;
     }
 }
 
