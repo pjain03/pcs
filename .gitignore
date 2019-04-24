@@ -51,3 +51,8 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+# Our executables
+scripts/exe_client
+scripts/exe_proxy
+cache.log

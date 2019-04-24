@@ -1,8 +1,0 @@
-Eviction policy: mru
-
-21:43:06 ADD http://www.cs.cmu.edu/~prs/bio.html
-21:43:06 ADD http://www.arcanedomain.com/Noahhead.jpg
-21:43:07 ADD http://portquiz.net:8080/
-21:43:07 FETCH http://portquiz.net:8080/
-21:43:07 EVICT http://portquiz.net:8080/ 
-21:43:07 ADD http://www.cs.tufts.edu/comp/160/
