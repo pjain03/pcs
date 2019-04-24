@@ -704,6 +704,7 @@ int read_sockfd(int sockfd, char *buffer, Connection *connection) {
     bzero(buffer, BUFFER_SIZE);
 
     if ((last_read = read(sockfd, buffer, BUFFER_SIZE)) < 0) {
+        printf("sockfd: %d ", sockfd);
         error_declare("Couldn't read from client socket!");
         return -1;
     }

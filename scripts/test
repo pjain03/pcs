@@ -81,6 +81,9 @@ print ("--------- TEST 4 (Eviction from cache assuming cache size = 3) CHECK SER
 os.system("rm temp")
 
 
-
-
+#Test 5: Test CONNECT
+os.system("curl -x " + proxy + ":" + port + " " + url0 + "> ours.html")
+os.system("curl " + url0 + "> real.html")
+os.system("diff ours.html real.html")
+# os.system("rm ours.html real.html")
 

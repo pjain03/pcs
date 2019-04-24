@@ -48,14 +48,18 @@ void add_data_to_cache(char *url, HTTPResponse *response) {
     if (curr == NULL) { // Data is not in cache yet
         if (HASH_COUNT(cache) >= MAX_CACHE_SIZE) { // Cache is full, must evict something 
             // TODO: look for stale items first?
-            if (strcmp(eviction_policy, "lru") == 0) {
-                lru_evict();
-            } else if (strcmp(eviction_policy, "mru") == 0) {
-                mru_evict();
-            } else if (strcmp(eviction_policy, "random") == 0) {
-                random_evict();
-            } else { // LRU default
-                lru_evict();
+            if (eviction_policy == NULL) {
+                lru_evict(); // LRU default
+            } else {
+              if (strcmp(eviction_policy, "lru") == 0) {
+                    lru_evict();
+                } else if (strcmp(eviction_policy, "mru") == 0) {
+                    mru_evict();
+                } else if (strcmp(eviction_policy, "random") == 0) {
+                    random_evict();
+                } else { // LRU default
+                    lru_evict();
+                }              
             }
         }
 
