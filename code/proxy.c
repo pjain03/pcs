@@ -19,6 +19,7 @@
 //
 // Data Structures
 //
+char *Proxy_URL = NULL;
 
 
 //
@@ -49,9 +50,9 @@ int main(int argc, char **argv) {
     /* Runs the full program */
 
     // we require a port to listen on
-    if (argc < 2) {
+    if (argc < 3) {
         error_out("Incorrect number of arguments!\n"
-                  "Usage: ./proxy <port number> <OPTIONAL: eviction policy>");
+                  "Usage: ./proxy <host name> <port number> <OPTIONAL: eviction policy>");
     }
 
     // important variables
@@ -66,14 +67,26 @@ int main(int argc, char **argv) {
 
     Connection *connection_list = NULL;  /* IMPORTANT: initialize this to NULL
                                           *            - UTHash requirement */
-    if (argc == 2) {
+    if (argc == 3) {
         init_cache(NULL);
     } else {
-        init_cache(argv[2]);
+        init_cache(argv[3]);
     }
 
     // setup server
-    port_num = atoi(argv[1]);
+    if ((Proxy_URL = (char *) malloc(strlen(argv[1]) + 1 + strlen(argv[2]) + 1))
+            == NULL) {
+        // in case of malloc failing, we set the Proxy_URL to EMPTY because
+        // that will never match the host of a GET
+        Proxy_URL = EMPTY;
+    } else {
+        bzero(Proxy_URL, strlen(argv[1] + 1 + strlen(argv[2]) + 1));
+        Proxy_URL[strlen(argv[1]) + 1 + strlen(argv[2])] = '\0';
+        memcpy(Proxy_URL, argv[1], strlen(argv[1]));
+        memcpy(Proxy_URL + strlen(argv[1]), COLON, 1);
+        memcpy(Proxy_URL + strlen(argv[1]) + 1, argv[2], strlen(argv[2]));
+    }
+    port_num = atoi(argv[2]);
     proxy = setup_server(port_num);
     printf("Listening on port %d...\n", port_num);
 
@@ -203,9 +216,17 @@ int handle_client(int sockfd, int proxy, char *buffer, Connection **connection_l
                 display_request(connection->request);
 
                 if (connection->request->method == GET) {
-                    last_read = handle_get_request(sockfd, proxy, last_read,
-                                                   connection, connection_list,
-                                                   max_fd, master);
+
+                    // if we are the host then it is a query for the cache
+                    if (strcmp(get_hdr_value(connection->request->hdrs, "Host"),
+                            Proxy_URL) == 0) {
+                        printf("Query: %s\n", connection->request->body);
+                        last_read = -1;
+                    } else {
+                        last_read = handle_get_request(sockfd, proxy, last_read,
+                                                    connection, connection_list,
+                                                    max_fd, master);
+                    }
                 } else if (connection->request->method == CONNECT) {
                     last_read = handle_connect_request(sockfd, proxy, last_read,
                                                        connection, connection_list,
