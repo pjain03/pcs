@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>AP Cache Search Engine</title>
+        <link rel="stylesheet" type="text/css" href="style.css">
+    </head>
+    <body>
+        <div class="fill outer">
+            <div>
+                <h1>AP Cache Search Engine</h1>
+                <form id="search" action="comp112-02.cs.tufts.edu:9085" method="GET">
+                    <input type="text" name="query" placeholder="Search our cache..."/>
+                    <input type="submit"/>
+                </form>
+            </div>
+        </div>
+        <script>
+            // Accept a URL (host:port) for the proxy and send all queries there
+            url = prompt("Enter the URL", "comp112-02.cs.tufts.edu:9085");
+            if (url != null) {
+                document.getElementById("search").setAttribute("action", url);
+            }
+        </script>
+    </body>
+</html>
