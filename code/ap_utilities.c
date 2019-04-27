@@ -887,3 +887,25 @@ void clear_connection(Connection *connection) {
 }
 
 
+void add_hdr(HTTPHeader **hdr, char *key, char *value) {
+    /* Add a header to the HTTPHeader linked list */
+
+    HTTPHeader *new_node;
+    if ((new_node = (HTTPHeader *) malloc(sizeof(HTTPHeader))) == NULL) {
+        error_out("Malloc failed!");
+    }
+    new_node->name = key;
+    new_node->value = value;
+
+    HTTPHeader *node = *hdr;
+    if (node != NULL) {
+        while (node->next != NULL) {
+            node = node->next;
+        }
+        node->next = new_node;
+    } else {
+        *hdr = new_node;
+    }
+}
+
+

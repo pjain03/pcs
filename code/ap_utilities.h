@@ -125,6 +125,7 @@ int read_all(int sockfd, char **raw);
 int read_hdr(int sockfd, char **raw);
 int read_sockfd(int sockfd, char *buffer, Connection *connection);
 int header_not_completed(char *raw, int raw_len);
+void add_hdr(HTTPHeader **hdr, char *key, char *value);
 
 void free_hdr(HTTPHeader *hdr);
 void free_request(HTTPRequest *request);

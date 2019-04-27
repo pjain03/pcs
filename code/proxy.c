@@ -36,6 +36,8 @@ int handle_get_request(int sockfd, int proxy, int last_read, Connection *connect
                        Connection **connection_list, int *max_fd, fd_set *master);
 int handle_connect_request(int sockfd, int proxy, int last_read, Connection *connection,
                            Connection **connection_list, int *max_fd, fd_set *master);
+int handle_cache_query(int sockfd, int proxy, int last_read, Connection *connection,
+                       Connection **connection_list, int *max_fd, fd_set *master);
 int handle_get_response(int last_read, Connection *connection);
 int handle_connect_response(int last_read, Connection *connection);
 void handle_connect(int client, int server, HTTPRequest *request);
@@ -221,11 +223,13 @@ int handle_client(int sockfd, int proxy, char *buffer, Connection **connection_l
                     if (strcmp(get_hdr_value(connection->request->hdrs, "Host"),
                             Proxy_URL) == 0) {
                         printf("Query: %s\n", connection->request->body);
-                        last_read = -1;
+                        last_read = handle_cache_query(sockfd, proxy, last_read,
+                                                       connection, connection_list,
+                                                       max_fd, master);
                     } else {
                         last_read = handle_get_request(sockfd, proxy, last_read,
-                                                    connection, connection_list,
-                                                    max_fd, master);
+                                                       connection, connection_list,
+                                                       max_fd, master);
                     }
                 } else if (connection->request->method == CONNECT) {
                     last_read = handle_connect_request(sockfd, proxy, last_read,
@@ -319,6 +323,43 @@ int handle_connect_request(int sockfd, int proxy, int last_read, Connection *con
     }
 
     return last_read;
+}
+
+
+int handle_cache_query(int sockfd, int proxy, int last_read, Connection *connection,
+                       Connection **connection_list, int *max_fd, fd_set *master) {
+    /* Handle query to the cache */
+
+    char *response = NULL;
+    int response_length = 0;
+    if ((connection->response = (HTTPResponse *) malloc(sizeof(HTTPResponse)))
+            == NULL) {
+        error_out("Couldn't malloc!");
+    }
+    if ((connection->response->version =
+            (char *) malloc(strlen(connection->request->version))) == NULL) {
+        error_out("Couldn't malloc!");
+    }
+
+    // setup response
+    memcpy(connection->response->version, connection->request->version,
+           strlen(connection->request->version));
+    connection->response->status_desc = "OK";
+    connection->response->status = "200";
+    connection->response->hdrs = NULL;
+
+    // TODO: Add CORS headers?
+    add_hdr(&(connection->response->hdrs), "Access-Control-Allow-Origin", "*");
+
+    // TODO: Add query response, this is temporary (for testing)
+    connection->response->body = connection->request->body;
+    connection->response->body_length = connection->request->body_length;
+
+    response_length = construct_response(connection->response, &response);
+    last_read = write_to_socket(sockfd, response, response_length);
+
+    // return last_read;
+    return -1;
 }
 
 

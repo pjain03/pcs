@@ -30,9 +30,9 @@ Run the following commands:
             - Before editing, contact the other person
 4. TODO: Search engine
     - Set up website/proxy (~2 hours, Pulkit)
-        - Website
+        - Website (DONE)
             - Forms for accepting proxy, port, and search bar
             - On submitting the form, it queries the cache (Sends a GET for the requested keywords)
-        - Proxy
+        - Proxy (DONE)
             - Handle GET to our proxy with query parameters
     - Set up search engine functionality
