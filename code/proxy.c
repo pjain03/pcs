@@ -36,6 +36,8 @@ int handle_get_request(int sockfd, int proxy, int last_read, Connection *connect
                        Connection **connection_list, int *max_fd, fd_set *master);
 int handle_connect_request(int sockfd, int proxy, int last_read, Connection *connection,
                            Connection **connection_list, int *max_fd, fd_set *master);
+int handle_options_request(int sockfd, int proxy, int last_read, Connection *connection,
+                           Connection **connection_list, int *max_fd, fd_set *master);
 int handle_cache_query(int sockfd, int proxy, int last_read, Connection *connection,
                        Connection **connection_list, int *max_fd, fd_set *master);
 int handle_get_response(int last_read, Connection *connection);
@@ -235,7 +237,11 @@ int handle_client(int sockfd, int proxy, char *buffer, Connection **connection_l
                     last_read = handle_connect_request(sockfd, proxy, last_read,
                                                        connection, connection_list,
                                                        max_fd, master);
-                } else {
+                } else if (connection->request->method == OPTIONS) {
+                    last_read = handle_options_request(sockfd, proxy, last_read,
+                                                       connection, connection_list,
+                                                       max_fd, master);
+                }else {
                     error_declare("Unsupported request!");
                     last_read = -1;
                 }
@@ -259,7 +265,7 @@ int handle_client(int sockfd, int proxy, char *buffer, Connection **connection_l
             }
         }
     }
-
+printf("LAST READ IS HERE %d\n", last_read);
     return last_read;
 }
 
@@ -324,6 +330,94 @@ int handle_connect_request(int sockfd, int proxy, int last_read, Connection *con
 
     return last_read;
 }
+
+int handle_options_request(int sockfd, int proxy, int last_read, Connection *connection,
+                           Connection **connection_list, int *max_fd, fd_set *master) {
+    /* Handle the OPTIONS request */
+
+    int server = add_server(proxy, sockfd, connection->request, connection_list);
+    if (server > 0) {
+        add_select(server, max_fd, master);
+
+        // respond to the preflight request with an Access-Control-Allow-Methods response header
+        char *response = NULL;
+        int response_length = 0;
+        if ((connection->response = (HTTPResponse *) malloc(sizeof(HTTPResponse)))
+                == NULL) {
+            error_out("Couldn't malloc!");
+        }
+        if ((connection->response->version =
+                (char *) malloc(strlen(connection->request->version))) == NULL) {
+            error_out("Couldn't malloc!");
+        }
+
+        // setup response
+        memcpy(connection->response->version, connection->request->version,
+               strlen(connection->request->version));
+        connection->response->status_desc = "No Content";
+        connection->response->status = "204";
+        connection->response->hdrs = NULL;
+
+
+        add_hdr(&(connection->response->hdrs), "Connection", "Keep-Alive");
+        add_hdr(&(connection->response->hdrs), "Access-Control-Allow-Origin", "*");
+        add_hdr(&(connection->response->hdrs), "Access-Control-Allow-Methods", "GET");
+        add_hdr(&(connection->response->hdrs), "Access-Control-Max-Age", "86400");
+        add_hdr(&(connection->response->hdrs), "Content-Length", "0");
+
+        connection->response->body_length = 0;
+        response_length = construct_response(connection->response, &response);
+        last_read = write_to_socket(sockfd, response, response_length);
+    }
+    printf("wrote this much to socket %d", last_read);
+    // return last_read;
+    return last_read;
+}
+
+/*        char *resp = NULL;;
+        int resp_len = strlen(connection->request->version) + strlen(OPTIONS_OK) + strlen(CRLF) 
+                     + strlen(CONNECTION_KEEP_ALIVE) + strlen(CRLF)
+                     + strlen(ACCESS_CONTROL_ORIGIN) + strlen(CRLF) 
+                     + strlen(ACCESS_CONTROL_METHODS) + strlen(CRLF) 
+                     + strlen(ACCESS_CONTROL_MAX_AGE) + strlen(CRLF2);
+
+        if ((resp = (char *) malloc(resp_len)) == NULL) {
+            error_out("Couldn't malloc!");
+        }
+        bzero(resp, resp_len);
+        memcpy(resp, connection->request->version, strlen(connection->request->version));
+        memcpy(resp + strlen(connection->request->version), OPTIONS_OK, strlen(OPTIONS_OK));
+        memcpy(resp + strlen(connection->request->version) + strlen(OK), CRLF, strlen(CRLF));
+        memcpy(resp + strlen(connection->request->version) + strlen(OK) + strlen(CRLF), CONNECTION_KEEP_ALIVE, strlen(CONNECTION_KEEP_ALIVE));
+        memcpy(resp + strlen(connection->request->version) + strlen(OK) + strlen(CRLF) + strlen(CONNECTION_KEEP_ALIVE), 
+                CRLF, strlen(CRLF));
+        memcpy(resp + strlen(connection->request->version) + strlen(OK) + strlen(CRLF) + strlen(CONNECTION_KEEP_ALIVE) + strlen(CRLF), 
+                ACCESS_CONTROL_ORIGIN, strlen(ACCESS_CONTROL_ORIGIN));
+        memcpy(resp + strlen(connection->request->version) + strlen(OK) + strlen(CRLF) + strlen(CONNECTION_KEEP_ALIVE) + strlen(CRLF) + strlen(ACCESS_CONTROL_ORIGIN), 
+                CRLF, strlen(CRLF));        
+        memcpy(resp + strlen(connection->request->version) + strlen(OK) + strlen(CRLF) + strlen(CONNECTION_KEEP_ALIVE) + strlen(CRLF) + strlen(ACCESS_CONTROL_ORIGIN) + strlen(CRLF), 
+                ACCESS_CONTROL_METHODS, strlen(ACCESS_CONTROL_METHODS));
+        memcpy(resp + strlen(connection->request->version) + strlen(OK) + strlen(CRLF) + strlen(CONNECTION_KEEP_ALIVE) + strlen(CRLF) + strlen(ACCESS_CONTROL_ORIGIN) + strlen(CRLF) + strlen(ACCESS_CONTROL_METHODS), 
+                CRLF, strlen(CRLF));          
+        memcpy(resp + strlen(connection->request->version) + strlen(OK) + strlen(CRLF) + strlen(CONNECTION_KEEP_ALIVE) + strlen(CRLF) + strlen(ACCESS_CONTROL_ORIGIN) + strlen(CRLF) + strlen(ACCESS_CONTROL_METHODS) + strlen(CRLF), 
+                ACCESS_CONTROL_MAX_AGE, strlen(ACCESS_CONTROL_MAX_AGE));
+        memcpy(resp + strlen(connection->request->version) + strlen(OK) + strlen(CRLF) + strlen(CONNECTION_KEEP_ALIVE) + strlen(CRLF) + strlen(ACCESS_CONTROL_ORIGIN) + strlen(CRLF) + strlen(ACCESS_CONTROL_METHODS) + strlen(CRLF) + strlen(ACCESS_CONTROL_MAX_AGE), 
+                CRLF2, strlen(CRLF2));  
+
+
+        last_read = write_to_socket(sockfd, resp, resp_len);
+        printf("last read is %d", last_read);
+        free(resp);
+        resp = NULL;
+    } else {
+        // removes client in case of error
+        error_declare("Couldn't add server??\n");
+        last_read = -1;
+    } 
+
+    return last_read; */
+
+
 
 
 int handle_cache_query(int sockfd, int proxy, int last_read, Connection *connection,

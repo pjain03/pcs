@@ -35,6 +35,7 @@
 #define BUFFER_SIZE 2048
 #define CONNECT_RQ "CONNECT"
 #define GET_RQ "GET"
+#define OPTIONS_RQ "OPTIONS"
 #define COLON ":"
 #define EMPTY "\0"
 #define CRLF2 "\r\n\r\n"
@@ -44,6 +45,11 @@
 #define HOST "Host"
 #define AGE "Age"
 #define OK " 200 Connection established"
+#define OPTIONS_OK " 204 No Content"
+#define CONNECTION_KEEP_ALIVE "Connection: Keep-Alive"
+#define ACCESS_CONTROL_ORIGIN "Access-Control-Allow-Origin: *"
+#define ACCESS_CONTROL_METHODS "Access-Control-Allow-Methods: GET"
+#define ACCESS_CONTROL_MAX_AGE "Access-Control-Max-Age: 86400"
 #define CR "\r"
 #define LF "\n"
 
@@ -55,6 +61,7 @@ typedef enum HTTPMethod {
     /* HTTP Methods we support */
     GET,
     CONNECT,
+    OPTIONS, 
     UNSUPPORTED
 } HTTPMethod;
 

@@ -412,7 +412,10 @@ HTTPRequest *parse_request(int length, char *raw) {
         request->method = GET;
     } else if (strncmp(raw, CONNECT_RQ, strlen(CONNECT_RQ)) == 0) {
         request->method = CONNECT;
-    } else {
+    } else if (strncmp(raw, OPTIONS_RQ, strlen(OPTIONS_RQ)) == 0) {
+        request->method = OPTIONS;
+    }
+    else {
         request->method = UNSUPPORTED;
     }
     raw += method_length + 1;
