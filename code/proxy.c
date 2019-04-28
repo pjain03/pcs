@@ -476,6 +476,14 @@ int handle_get_response(int last_read, Connection *connection) {
 
     if (connection->response->body_length == connection->response->total_body_length) {
         display_response(connection->response);
+
+        // set the keywords
+        extract_keywords(&(connection->response));
+        fprintf(stderr, "Keywords are: \n");
+        for (int i = 0; i < NUM_KEYWORDS; i++) {
+            fprintf(stderr, "%s\n", connection->response->keywords[i]);
+        }
+
         add_data_to_cache(connection->request->url, connection->response);
     }
 

@@ -50,9 +50,10 @@
 #define ACCESS_CONTROL_ORIGIN "Access-Control-Allow-Origin: *"
 #define ACCESS_CONTROL_METHODS "Access-Control-Allow-Methods: GET"
 #define ACCESS_CONTROL_MAX_AGE "Access-Control-Max-Age: 86400"
+#define NUM_KEYWORDS 5
 #define CR "\r"
 #define LF "\n"
-
+#define STOP_WORDS_LIST_SIZE 179
 
 //
 // Data Structures
@@ -93,6 +94,7 @@ typedef struct HTTPResponse {
     int body_length;
     int total_body_length;
     char *body;
+    char *keywords[NUM_KEYWORDS]; 
     time_t time_fetched;
 } HTTPResponse;
 
@@ -108,6 +110,18 @@ typedef struct Connection {
 	UT_hash_handle hh;
 } Connection;
 
+
+typedef struct WordCount {
+    char *word;                    /* key */
+    int count;
+    UT_hash_handle hh;         /* makes this structure hashable */
+} WordCount;
+
+
+typedef struct StopWord {
+    char *word;
+    UT_hash_handle hh;         /* makes this structure hashable */
+} StopWord;
 
 //
 // Forward Declarations
@@ -144,6 +158,12 @@ HTTPHeader *parse_headers(int *offset, char **raw_ptr);
 HTTPRequest *parse_request(int length, char *raw);
 HTTPResponse *parse_response(int length, char *raw);
 int construct_response(HTTPResponse *response, char **raw);
+
+void extract_keywords(HTTPResponse **response);
+char *strip_content(char *data, int body_len);
+StopWord *create_stop_words_set();
+int is_stop_word(StopWord *stop_words, char *word);
+int count_sort(WordCount *word1, WordCount *word2);
 
 #endif /* AP_H */
 
