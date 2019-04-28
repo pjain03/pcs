@@ -551,7 +551,8 @@ HTTPResponse *parse_response(int length, char *raw) {
     }
 
     // set the body
-    response->total_body_length = atoi(get_hdr_value(response->hdrs, CONTENT_LENGTH));
+    char *blen = get_hdr_value(response->hdrs, CONTENT_LENGTH);
+    response->total_body_length = atoi(blen);
     printf("BODY_LEN: %d\n", response->total_body_length);
     response->body = NULL;
     if (length - offset) {

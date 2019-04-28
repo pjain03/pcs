@@ -4,6 +4,7 @@
 Run the following commands:
 1. `chmod u+x ./scripts/*`
 2. `./scripts/compile`
+3. `pip install -r requirements.txt`
 
 ## Usage
 1. Run the proxy using:
