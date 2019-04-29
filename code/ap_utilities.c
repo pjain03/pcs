@@ -257,6 +257,7 @@ void free_response(HTTPResponse *response) {
             free(response->body);
             response->body = NULL;
         }
+
         free(response);
         response = NULL;
     }
@@ -565,6 +566,7 @@ HTTPResponse *parse_response(int length, char *raw) {
 
     // set the fetch time
     response->time_fetched = time(NULL);
+
 
     return response;
 }

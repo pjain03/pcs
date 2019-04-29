@@ -50,7 +50,7 @@
 #define OK " 200 Connection established"
 #define CR "\r"
 #define LF "\n"
-
+#define STOP_WORDS_LIST_SIZE 179
 
 //
 // Data Structures
@@ -91,6 +91,7 @@ typedef struct HTTPResponse {
     int body_length;
     int total_body_length;
     char *body;
+//    char *keywords[NUM_KEYWORDS]; 
     time_t time_fetched;
 } HTTPResponse;
 
@@ -105,6 +106,7 @@ typedef struct Connection {
     HTTPResponse *response;
 	UT_hash_handle hh;
 } Connection;
+
 
 
 //
@@ -143,6 +145,7 @@ HTTPHeader *parse_headers(int *offset, char **raw_ptr);
 HTTPRequest *parse_request(int length, char *raw);
 HTTPResponse *parse_response(int length, char *raw);
 int construct_response(HTTPResponse *response, char **raw);
+
 
 #endif /* AP_H */
 

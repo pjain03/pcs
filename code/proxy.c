@@ -9,8 +9,8 @@
 //
 // Includes and Definitions
 //
-#include "ap_utilities.h"
-#include "cache.h"
+
+#include "search_engine.h"
 
 #define NUM_QUEUED_CONNECTIONS 5
 #define TIMEOUT_INTERVAL 60
@@ -467,7 +467,14 @@ int handle_get_response(int last_read, Connection *connection) {
 
     if (connection->response->body_length == connection->response->total_body_length) {
         display_response(connection->response);
-        add_data_to_cache(connection->request->url, connection->response);
+
+        CacheObject *cache_entry = add_data_to_cache(connection->request->url, connection->response);
+                // set the keywords
+        extract_keywords(&(connection->response), cache_entry);
+        char str[] = "parsing";
+        find_relevant_urls(str);
+
+
     }
 
     return last_read;
