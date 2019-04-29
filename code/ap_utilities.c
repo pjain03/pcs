@@ -306,7 +306,7 @@ void display_response(HTTPResponse *response) {
         // Not printing out message body, clogging up terminal
         printf("Message Body:");
         if (response->body_length) {
-            printf("\n%d\n\n", response->total_body_length);
+            printf("\n%s\n\n", response->body);
         } else {
             printf(" EMPTY\n\n"); 
         }
@@ -663,9 +663,9 @@ int construct_response(HTTPResponse *response, char **raw_ptr) {
     // add age to header
     int age = time(NULL) - response->time_fetched;
     int name_length = strlen(AGE);
-    int value_length = snprintf( NULL, 0, "%d", age) + 1;
+    int value_length = snprintf( NULL, 0, "%d", age);
     char age_string[value_length];
-    snprintf(age_string, value_length, "%d", age);
+    sprintf(age_string, "%d", age);
     if ((raw = (char *) realloc(raw, response_length + name_length + 2 +
                                 value_length + 2 * crlf_length)) == NULL) {
         free_response(response);
@@ -901,6 +901,7 @@ void add_hdr(HTTPHeader **hdr, char *key, char *value) {
     }
     new_node->name = key;
     new_node->value = value;
+    new_node->next = NULL;
 
     HTTPHeader *node = *hdr;
     if (node != NULL) {
@@ -911,6 +912,23 @@ void add_hdr(HTTPHeader **hdr, char *key, char *value) {
     } else {
         *hdr = new_node;
     }
+}
+
+
+char *itoa_ap(int x) {
+    /* Converts the given integer to a char* without all the hassle of memory
+     * management */
+
+    char *str_x = NULL;
+    int length = 0;
+    
+    length = snprintf(NULL, 0, "%d", x);
+    if ((str_x = (char *) malloc(length)) == NULL) {
+        error_out("Couldn't malloc!");
+    }
+    sprintf(str_x, "%d", x);
+
+    return str_x;
 }
 
 

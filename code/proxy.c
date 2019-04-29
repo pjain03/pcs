@@ -42,7 +42,6 @@ int handle_cache_query(int sockfd, int proxy, int last_read, Connection *connect
                        Connection **connection_list, int *max_fd, fd_set *master);
 int handle_get_response(int last_read, Connection *connection);
 int handle_connect_response(int last_read, Connection *connection);
-void handle_connect(int client, int server, HTTPRequest *request);
 void handle_activity(fd_set *master, fd_set *readfds, int *max_fd, int proxy,
                      char *buffer, Connection **connection_list);
 
@@ -224,7 +223,6 @@ int handle_client(int sockfd, int proxy, char *buffer, Connection **connection_l
                     // if we are the host then it is a query for the cache
                     if (strcmp(get_hdr_value(connection->request->hdrs, "Host"),
                             Proxy_URL) == 0) {
-                        printf("Query: %s\n", connection->request->body);
                         last_read = handle_cache_query(sockfd, proxy, last_read,
                                                        connection, connection_list,
                                                        max_fd, master);
@@ -241,7 +239,7 @@ int handle_client(int sockfd, int proxy, char *buffer, Connection **connection_l
                     last_read = handle_options_request(sockfd, proxy, last_read,
                                                        connection, connection_list,
                                                        max_fd, master);
-                }else {
+                } else {
                     error_declare("Unsupported request!");
                     last_read = -1;
                 }
@@ -265,7 +263,7 @@ int handle_client(int sockfd, int proxy, char *buffer, Connection **connection_l
             }
         }
     }
-printf("LAST READ IS HERE %d\n", last_read);
+
     return last_read;
 }
 
@@ -358,102 +356,95 @@ int handle_options_request(int sockfd, int proxy, int last_read, Connection *con
         connection->response->status = "204";
         connection->response->hdrs = NULL;
 
-
         add_hdr(&(connection->response->hdrs), "Connection", "Keep-Alive");
         add_hdr(&(connection->response->hdrs), "Access-Control-Allow-Origin", "*");
-        add_hdr(&(connection->response->hdrs), "Access-Control-Allow-Methods", "GET");
+        add_hdr(&(connection->response->hdrs), "Access-Control-Allow-Methods", "GET, CONNECT, OPTIONS");
+        add_hdr(&(connection->response->hdrs), "Access-Control-Allow-Headers", "*");
         add_hdr(&(connection->response->hdrs), "Access-Control-Max-Age", "86400");
-        add_hdr(&(connection->response->hdrs), "Content-Length", "0");
 
         connection->response->body_length = 0;
+        connection->response->time_fetched = time(NULL);
         response_length = construct_response(connection->response, &response);
         last_read = write_to_socket(sockfd, response, response_length);
+        display_response(connection->response);
     }
-    printf("wrote this much to socket %d", last_read);
-    // return last_read;
+
+    free_request(connection->request);
+
     return last_read;
 }
-
-/*        char *resp = NULL;;
-        int resp_len = strlen(connection->request->version) + strlen(OPTIONS_OK) + strlen(CRLF) 
-                     + strlen(CONNECTION_KEEP_ALIVE) + strlen(CRLF)
-                     + strlen(ACCESS_CONTROL_ORIGIN) + strlen(CRLF) 
-                     + strlen(ACCESS_CONTROL_METHODS) + strlen(CRLF) 
-                     + strlen(ACCESS_CONTROL_MAX_AGE) + strlen(CRLF2);
-
-        if ((resp = (char *) malloc(resp_len)) == NULL) {
-            error_out("Couldn't malloc!");
-        }
-        bzero(resp, resp_len);
-        memcpy(resp, connection->request->version, strlen(connection->request->version));
-        memcpy(resp + strlen(connection->request->version), OPTIONS_OK, strlen(OPTIONS_OK));
-        memcpy(resp + strlen(connection->request->version) + strlen(OK), CRLF, strlen(CRLF));
-        memcpy(resp + strlen(connection->request->version) + strlen(OK) + strlen(CRLF), CONNECTION_KEEP_ALIVE, strlen(CONNECTION_KEEP_ALIVE));
-        memcpy(resp + strlen(connection->request->version) + strlen(OK) + strlen(CRLF) + strlen(CONNECTION_KEEP_ALIVE), 
-                CRLF, strlen(CRLF));
-        memcpy(resp + strlen(connection->request->version) + strlen(OK) + strlen(CRLF) + strlen(CONNECTION_KEEP_ALIVE) + strlen(CRLF), 
-                ACCESS_CONTROL_ORIGIN, strlen(ACCESS_CONTROL_ORIGIN));
-        memcpy(resp + strlen(connection->request->version) + strlen(OK) + strlen(CRLF) + strlen(CONNECTION_KEEP_ALIVE) + strlen(CRLF) + strlen(ACCESS_CONTROL_ORIGIN), 
-                CRLF, strlen(CRLF));        
-        memcpy(resp + strlen(connection->request->version) + strlen(OK) + strlen(CRLF) + strlen(CONNECTION_KEEP_ALIVE) + strlen(CRLF) + strlen(ACCESS_CONTROL_ORIGIN) + strlen(CRLF), 
-                ACCESS_CONTROL_METHODS, strlen(ACCESS_CONTROL_METHODS));
-        memcpy(resp + strlen(connection->request->version) + strlen(OK) + strlen(CRLF) + strlen(CONNECTION_KEEP_ALIVE) + strlen(CRLF) + strlen(ACCESS_CONTROL_ORIGIN) + strlen(CRLF) + strlen(ACCESS_CONTROL_METHODS), 
-                CRLF, strlen(CRLF));          
-        memcpy(resp + strlen(connection->request->version) + strlen(OK) + strlen(CRLF) + strlen(CONNECTION_KEEP_ALIVE) + strlen(CRLF) + strlen(ACCESS_CONTROL_ORIGIN) + strlen(CRLF) + strlen(ACCESS_CONTROL_METHODS) + strlen(CRLF), 
-                ACCESS_CONTROL_MAX_AGE, strlen(ACCESS_CONTROL_MAX_AGE));
-        memcpy(resp + strlen(connection->request->version) + strlen(OK) + strlen(CRLF) + strlen(CONNECTION_KEEP_ALIVE) + strlen(CRLF) + strlen(ACCESS_CONTROL_ORIGIN) + strlen(CRLF) + strlen(ACCESS_CONTROL_METHODS) + strlen(CRLF) + strlen(ACCESS_CONTROL_MAX_AGE), 
-                CRLF2, strlen(CRLF2));  
-
-
-        last_read = write_to_socket(sockfd, resp, resp_len);
-        printf("last read is %d", last_read);
-        free(resp);
-        resp = NULL;
-    } else {
-        // removes client in case of error
-        error_declare("Couldn't add server??\n");
-        last_read = -1;
-    } 
-
-    return last_read; */
-
-
 
 
 int handle_cache_query(int sockfd, int proxy, int last_read, Connection *connection,
                        Connection **connection_list, int *max_fd, fd_set *master) {
     /* Handle query to the cache */
 
-    char *response = NULL;
-    int response_length = 0;
+    CURL *curl = curl_easy_init();
+    char *response = NULL, *query = NULL, *tmp_query_start = NULL,
+         *tmp_query_end = NULL;
+    int response_length = 0, query_length = 0, tmp_query_length = 0;
     if ((connection->response = (HTTPResponse *) malloc(sizeof(HTTPResponse)))
             == NULL) {
         error_out("Couldn't malloc!");
     }
     if ((connection->response->version =
-            (char *) malloc(strlen(connection->request->version))) == NULL) {
+            (char *) malloc(strlen(connection->request->version) + 1)) == NULL) {
         error_out("Couldn't malloc!");
     }
 
     // setup response
     memcpy(connection->response->version, connection->request->version,
            strlen(connection->request->version));
+    connection->response->version[strlen(connection->request->version)] = '\0';
     connection->response->status_desc = "OK";
     connection->response->status = "200";
+    connection->response->time_fetched = time(NULL);
     connection->response->hdrs = NULL;
 
-    // TODO: Add CORS headers?
+    // extract query
+    if ((tmp_query_start = strstr(connection->request->url, QUERY))
+            == NULL) {
+        // no query string found
+        
+        error_declare("No query made!");
+        return -1;
+    }
+    if ((tmp_query_end = strstr(tmp_query_start, AMPERSAND)) != NULL) {
+        // ignore multiple query string arguments
+
+        tmp_query_length = tmp_query_end - tmp_query_start;
+        if ((query = (char *) malloc(tmp_query_length + 1)) == NULL) {
+            error_out("Couldn't malloc!");
+        }
+        memcpy(query, tmp_query_start, tmp_query_length);
+        query[tmp_query_length] = '\0';
+    } else {
+        // extract only query string
+
+        query = tmp_query_start;
+        query_length = strlen(tmp_query_start);
+    }
+
+    // clean the query
+    query = curl_easy_unescape(curl, query, tmp_query_length, &query_length);
+    curl_easy_cleanup(curl);
+    query += strlen(QUERY);  // remove leading "query="
+
+    // set it in the body (NEEDSWORK: temporary)
+    connection->response->body = query;
+    connection->response->body_length = connection->response->total_body_length
+        = strlen(query);
+    
+    // set appropriate headers
+    add_hdr(&(connection->response->hdrs), CONTENT_LENGTH, itoa_ap(strlen(query)));
     add_hdr(&(connection->response->hdrs), "Access-Control-Allow-Origin", "*");
 
-    // TODO: Add query response, this is temporary (for testing)
-    connection->response->body = connection->request->body;
-    connection->response->body_length = connection->request->body_length;
-
+    // create and send response
     response_length = construct_response(connection->response, &response);
     last_read = write_to_socket(sockfd, response, response_length);
 
     // return last_read;
-    return -1;
+    return last_read;
 }
 
 
@@ -516,84 +507,6 @@ void add_select(int sockfd, int *max_fd, fd_set *master) {
     if (*max_fd < sockfd) {
         *max_fd = sockfd;
     }
-}
-
-
-void handle_connect(int client, int server, HTTPRequest *request) {
-    /* Handle the CONNECT pipeline */
-
-    // setup
-    int read_len = 0, last_read = 1, readlen = 0, req_len = 0, max_fd = 0, n = 0,
-        th_len = strlen(request->version) + strlen(OK) + strlen(CRLF2);
-    fd_set master, readfds;
-    struct timeval tv;
-    char *buffer, *raw = NULL, *th_resp = NULL;
-    if ((buffer = (char *) malloc(BUFFER_SIZE)) == NULL) {
-        error_out("Couldn't malloc!");
-    }
-    if ((th_resp = (char *) malloc(th_len)) == NULL) {
-        error_out("Couldn't malloc!");
-    }
-    bzero(buffer, BUFFER_SIZE);
-    bzero(th_resp, th_len);
-
-    // send 200 to client and begin communication
-    memcpy(th_resp, request->version, strlen(request->version));
-    memcpy(th_resp + strlen(request->version), OK, strlen(OK));
-    memcpy(th_resp + strlen(request->version) + strlen(OK), CRLF2, strlen(CRLF2));
-    write_to_socket(client, th_resp, th_len);
-
-    // Tunnel connection between client and server
-    // TODO: multiple connections should fix this (SO BAD OMFG)
-    //       this can then be treated as ANY other connection
-    FD_ZERO(&master);
-    FD_SET(client, &master);
-    FD_SET(server, &master);
-    max_fd = server;
-    tv.tv_sec = TIMEOUT_INTERVAL;
-    tv.tv_usec = TIMEOUT_INTERVAL;
-    while (1) {
-        FD_ZERO(&readfds);
-        memcpy(&readfds, &master, sizeof(master));
-        if ((n = select(max_fd + 1, &readfds, NULL, NULL, &tv)) == -1) {
-            error_out("Select errored out!");
-        } else if (n == 0) {
-            error_declare("TODO: Handle Timeout!");
-            break;
-        } else {
-            for (int i = client; i < max_fd + 1; i++) {
-                if (FD_ISSET(i, &readfds)) {
-                    printf("Data is available now! %d, %d, %d\n", i, client, server);
-                    // client said something
-                    if (i == client) {
-                        last_read = read(client, buffer, BUFFER_SIZE);
-                        printf("READ %d bytes from client!\n", last_read);
-                        if (last_read >= 0) {
-                            write_to_socket(server, buffer, last_read);
-                        }
-                    }
-                    // server said something
-                    else if (i == server) {
-                        last_read = read(server, buffer, BUFFER_SIZE);
-                        printf("READ %d bytes from server!\n", last_read);
-                        if (last_read >= 0) {
-                            write_to_socket(client, buffer, last_read);
-                        }
-                    }
-                }
-                if (last_read <= 0) {
-                    break;
-                }
-                bzero(buffer, BUFFER_SIZE);
-            }
-        }
-        if (last_read <= 0) {
-            break;
-        }
-    }
-
-    // cleanup
-    free(buffer);
 }
 
 

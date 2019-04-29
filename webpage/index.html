@@ -3,13 +3,16 @@
     <head>
         <meta charset="utf-8">
         <title>AP Cache Search Engine</title>
+        <link rel="icon" href="/favicon.ico">
         <link rel="stylesheet" type="text/css" href="style.css">
         <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
     </head>
     <body>
-        <div class="fill outer">
-            <div>
-                <h1>AP Cache Search Engine</h1>
+        <div class="fill" id="outer">
+            <div id="search-bar">
+                <div id="heading">
+                    <h1>AP Cache Search Engine</h1>
+                </div>
                 <form id="search">
                     <input type="text" name="url" placeholder="Proxy URL..."/>
                     <input type="text" name="query" placeholder="Search our cache..."/>
@@ -17,52 +20,15 @@
                 </form>
             </div>
             <div id="results"></div>
+            <div id="error">
+                <h3><span id="error_txt">ERROR:</span> Couldn't query the cache</h3>
+                <ul>
+                    <li>Please check the proxy URL</li>
+                    <li>Please check if the proxy is running</li>
+                    <li>Please contact us!</li>
+                </ul>
+            </div>
         </div>
-        <script>
-            function send_get_request() {
-                url = document.getElementsByName("url")[0].value;
-                data = document.getElementsByName("query")[0].value;
-                if (url == "") {
-                    url = "comp112-02.cs.tufts.edu:9085";
-                    alert("Proxy URL defaulting to " + url);
-                }
-                if (data == "") {
-                    alert("ABORT: Query was empty!");
-                } else {
-                    $.ajax({
-                        url: url,
-                        type: "GET",
-                        contentType: "text/plain",
-                        crossDomain: true,
-                        xhrFields: {
-                            withCredentials: false
-                        },
-                        headers: {
-                            "Access-Control-Allow-Origin": "*"
-                        },
-                        data: {
-                            query: data
-                        },
-                        success: function (response) {
-                            $("#results").html = response;
-                            console.log("RESPONSE: " + response);
-                        },
-                        failure: function (xhr, status) {
-                            console.log(xhr, status);
-                        }
-                    });
-                }
-            }
-
-            $("#search").submit(function (e) {
-                // Stop the form from reloading the page
-                e.preventDefault();
-                send_get_request();
-            });
-
-            $("#submit").click(function (e) {
-                send_get_request();
-            });
-        </script>
+        <script src="script.js"></script>
     </body>
 </html>
