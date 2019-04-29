@@ -14,7 +14,7 @@ typedef struct CacheObject {
 } CacheObject;
 
 
-void add_data_to_cache(char *url, HTTPResponse *response);
+CacheObject *add_data_to_cache(char *url, HTTPResponse *response);
 HTTPResponse *get_data_from_cache(char *url);
 void lru_evict();
 void mru_evict();

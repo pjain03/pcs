@@ -94,7 +94,7 @@ typedef struct HTTPResponse {
     int body_length;
     int total_body_length;
     char *body;
-    char *keywords[NUM_KEYWORDS]; 
+//    char *keywords[NUM_KEYWORDS]; 
     time_t time_fetched;
 } HTTPResponse;
 
@@ -111,17 +111,6 @@ typedef struct Connection {
 } Connection;
 
 
-typedef struct WordCount {
-    char *word;                    /* key */
-    int count;
-    UT_hash_handle hh;         /* makes this structure hashable */
-} WordCount;
-
-
-typedef struct StopWord {
-    char *word;
-    UT_hash_handle hh;         /* makes this structure hashable */
-} StopWord;
 
 //
 // Forward Declarations
@@ -159,11 +148,6 @@ HTTPRequest *parse_request(int length, char *raw);
 HTTPResponse *parse_response(int length, char *raw);
 int construct_response(HTTPResponse *response, char **raw);
 
-void extract_keywords(HTTPResponse **response);
-char *strip_content(char *data, int body_len);
-StopWord *create_stop_words_set();
-int is_stop_word(StopWord *stop_words, char *word);
-int count_sort(WordCount *word1, WordCount *word2);
 
 #endif /* AP_H */
 

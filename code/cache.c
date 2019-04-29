@@ -38,7 +38,7 @@ HTTPResponse *get_data_from_cache(char *url) {
 }
 
 
-void add_data_to_cache(char *url, HTTPResponse *response) {
+CacheObject *add_data_to_cache(char *url, HTTPResponse *response) {
     CacheObject *curr = NULL;
     time_t s = time(NULL);
     struct tm* current_time = localtime(&s); 
@@ -75,6 +75,8 @@ void add_data_to_cache(char *url, HTTPResponse *response) {
         HASH_ADD_KEYPTR(hh, cache, curr->url, strlen(curr->url), curr);
 
     }
+
+    return curr;
 }
 
 void lru_evict() {
