@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <curl/curl.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include "uthash/src/uthash.h"
@@ -34,22 +35,19 @@
 #define CONTENT_LENGTH "Content-Length"
 #define BUFFER_SIZE 2048
 #define CONNECT_RQ "CONNECT"
-#define GET_RQ "GET"
 #define OPTIONS_RQ "OPTIONS"
+#define AMPERSAND "&"
+#define GET_RQ "GET"
 #define COLON ":"
 #define EMPTY "\0"
 #define CRLF2 "\r\n\r\n"
+#define QUERY "query="
 #define CRLF "\r\n"
 #define CRCR "\r\r"
 #define LFLF "\n\n"
 #define HOST "Host"
 #define AGE "Age"
 #define OK " 200 Connection established"
-#define OPTIONS_OK " 204 No Content"
-#define CONNECTION_KEEP_ALIVE "Connection: Keep-Alive"
-#define ACCESS_CONTROL_ORIGIN "Access-Control-Allow-Origin: *"
-#define ACCESS_CONTROL_METHODS "Access-Control-Allow-Methods: GET"
-#define ACCESS_CONTROL_MAX_AGE "Access-Control-Max-Age: 86400"
 #define CR "\r"
 #define LF "\n"
 
@@ -133,13 +131,14 @@ int read_hdr(int sockfd, char **raw);
 int read_sockfd(int sockfd, char *buffer, Connection *connection);
 int header_not_completed(char *raw, int raw_len);
 void add_hdr(HTTPHeader **hdr, char *key, char *value);
+char *get_hdr_value(HTTPHeader *hdrs, const char *name);
+char *itoa_ap(int x);
 
 void free_hdr(HTTPHeader *hdr);
 void free_request(HTTPRequest *request);
 void free_response(HTTPResponse *response);
 void display_request(HTTPRequest *request);
 void display_response(HTTPResponse *response);
-char *get_hdr_value(HTTPHeader *hdrs, const char *name);
 HTTPHeader *parse_headers(int *offset, char **raw_ptr);
 HTTPRequest *parse_request(int length, char *raw);
 HTTPResponse *parse_response(int length, char *raw);

@@ -15,36 +15,27 @@
                     <input type="text" name="query" placeholder="Search our cache..."/>
                     <button type="button" id="submit">Submit</button>
                 </form>
+                <div id="results"></div>
             </div>
-            <div id="results"></div>
         </div>
         <script>
             function send_get_request() {
-                url = document.getElementsByName("url")[0].value;
-                data = document.getElementsByName("query")[0].value;
-                if (url == "") {
-                    url = "comp112-02.cs.tufts.edu:9085";
+                url_txt = document.getElementsByName("url")[0].value;
+                query_txt = document.getElementsByName("query")[0].value;
+                if (url_txt == "") {
+                    url_txt = "comp112-02.cs.tufts.edu:9085";
                     alert("Proxy URL defaulting to " + url);
                 }
-                if (data == "") {
+                if (query_txt == "") {
                     alert("ABORT: Query was empty!");
                 } else {
-                    $.ajax({
-                        url: url,
-                        type: "GET",
-                        contentType: "text/plain",
-                        crossDomain: true,
-                        xhrFields: {
-                            withCredentials: false
-                        },
-                        headers: {
-                            "Access-Control-Allow-Origin": "*"
-                        },
+                    $.get({
+                        url: url_txt,
                         data: {
-                            query: data
+                            query: query_txt
                         },
                         success: function (response) {
-                            $("#results").html = response;
+                            $("#results").html("RESULTS<br>" + response);
                             console.log("RESPONSE: " + response);
                         },
                         failure: function (xhr, status) {
