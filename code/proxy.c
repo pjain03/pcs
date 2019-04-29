@@ -442,8 +442,6 @@ int handle_cache_query(int sockfd, int proxy, int last_read, Connection *connect
     // create and send response
     response_length = construct_response(connection->response, &response);
     last_read = write_to_socket(sockfd, response, response_length);
-    printf("Writing %d %ld\n", last_read, strlen(response));
-    printf("%s\n", response);
 
     // return last_read;
     return last_read;
