@@ -35,6 +35,7 @@
 #define BUFFER_SIZE 2048
 #define CONNECT_RQ "CONNECT"
 #define GET_RQ "GET"
+#define OPTIONS_RQ "OPTIONS"
 #define COLON ":"
 #define EMPTY "\0"
 #define CRLF2 "\r\n\r\n"
@@ -44,9 +45,15 @@
 #define HOST "Host"
 #define AGE "Age"
 #define OK " 200 Connection established"
+#define OPTIONS_OK " 204 No Content"
+#define CONNECTION_KEEP_ALIVE "Connection: Keep-Alive"
+#define ACCESS_CONTROL_ORIGIN "Access-Control-Allow-Origin: *"
+#define ACCESS_CONTROL_METHODS "Access-Control-Allow-Methods: GET"
+#define ACCESS_CONTROL_MAX_AGE "Access-Control-Max-Age: 86400"
+#define NUM_KEYWORDS 5
 #define CR "\r"
 #define LF "\n"
-
+#define STOP_WORDS_LIST_SIZE 179
 
 //
 // Data Structures
@@ -55,6 +62,7 @@ typedef enum HTTPMethod {
     /* HTTP Methods we support */
     GET,
     CONNECT,
+    OPTIONS, 
     UNSUPPORTED
 } HTTPMethod;
 
@@ -86,6 +94,7 @@ typedef struct HTTPResponse {
     int body_length;
     int total_body_length;
     char *body;
+//    char *keywords[NUM_KEYWORDS]; 
     time_t time_fetched;
 } HTTPResponse;
 
@@ -100,6 +109,7 @@ typedef struct Connection {
     HTTPResponse *response;
 	UT_hash_handle hh;
 } Connection;
+
 
 
 //
@@ -125,6 +135,7 @@ int read_all(int sockfd, char **raw);
 int read_hdr(int sockfd, char **raw);
 int read_sockfd(int sockfd, char *buffer, Connection *connection);
 int header_not_completed(char *raw, int raw_len);
+void add_hdr(HTTPHeader **hdr, char *key, char *value);
 
 void free_hdr(HTTPHeader *hdr);
 void free_request(HTTPRequest *request);
@@ -136,6 +147,7 @@ HTTPHeader *parse_headers(int *offset, char **raw_ptr);
 HTTPRequest *parse_request(int length, char *raw);
 HTTPResponse *parse_response(int length, char *raw);
 int construct_response(HTTPResponse *response, char **raw);
+
 
 #endif /* AP_H */
 

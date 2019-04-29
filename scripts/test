@@ -8,7 +8,7 @@ import time
 #os.system
 port = sys.argv[1]
 proxy = "comp112-02.cs.tufts.edu"
-url0 = "https://www.google.com"
+url0 = "https://driftaway.coffee/how-to-remove-coffee-stains/"
 url1 = "http://www.cs.cmu.edu/~prs/bio.html"
 url2 = "https://www.google.com/"
 url3 = "http://portquiz.net:8080/"
@@ -82,8 +82,8 @@ os.system("rm temp")
 
 
 #Test 5: Test CONNECT
-os.system("curl -x " + proxy + ":" + port + " " + url0 + "> ours.html")
-os.system("curl " + url0 + "> real.html")
-os.system("diff ours.html real.html")
-# os.system("rm ours.html real.html")
+os.system("curl -x " + proxy + ":" + port + " " + url0 + "> ours")
+os.system("curl " + url0 + "> real")
+os.system("diff ours real")
+os.system("rm ours real")
 

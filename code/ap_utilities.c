@@ -257,6 +257,7 @@ void free_response(HTTPResponse *response) {
             free(response->body);
             response->body = NULL;
         }
+
         free(response);
         response = NULL;
     }
@@ -412,7 +413,10 @@ HTTPRequest *parse_request(int length, char *raw) {
         request->method = GET;
     } else if (strncmp(raw, CONNECT_RQ, strlen(CONNECT_RQ)) == 0) {
         request->method = CONNECT;
-    } else {
+    } else if (strncmp(raw, OPTIONS_RQ, strlen(OPTIONS_RQ)) == 0) {
+        request->method = OPTIONS;
+    }
+    else {
         request->method = UNSUPPORTED;
     }
     raw += method_length + 1;
@@ -562,6 +566,7 @@ HTTPResponse *parse_response(int length, char *raw) {
 
     // set the fetch time
     response->time_fetched = time(NULL);
+
 
     return response;
 }
@@ -883,6 +888,28 @@ void clear_connection(Connection *connection) {
         // }
         free(connection);
         connection = NULL;
+    }
+}
+
+
+void add_hdr(HTTPHeader **hdr, char *key, char *value) {
+    /* Add a header to the HTTPHeader linked list */
+
+    HTTPHeader *new_node;
+    if ((new_node = (HTTPHeader *) malloc(sizeof(HTTPHeader))) == NULL) {
+        error_out("Malloc failed!");
+    }
+    new_node->name = key;
+    new_node->value = value;
+
+    HTTPHeader *node = *hdr;
+    if (node != NULL) {
+        while (node->next != NULL) {
+            node = node->next;
+        }
+        node->next = new_node;
+    } else {
+        *hdr = new_node;
     }
 }
 

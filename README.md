@@ -7,9 +7,11 @@ Run the following commands:
 
 ## Usage
 1. Run the proxy using:
-    * `./scripts/exe_proxy <port number> <eviction policy>`
-    Eviction policies to choose from: lru, mru, random
+    * `./scripts/exe_proxy <host name> <port number> <OPTIONAL: eviction policy>`
+    Eviction policies to choose from: `lru`, `mru`, `random`
     If no eviction policy was provided, `lru` is the default
+    * `./scripts/proxy <port number> <OPTIONAL: eviction policy>`
+    We set the host name to our default in this script. It allows us to run the proxy easily on the same machine several times
 2. Test the proxy using our test script. Edit the `PROXY` and `RESRC` variables defined in `./scripts/test` as indicated to test a different machine or resource respectively:
     * `./scripts/test <port number>`
     * NOTE: We use python version 2.7.12
@@ -28,9 +30,9 @@ Run the following commands:
             - Before editing, contact the other person
 4. TODO: Search engine
     - Set up website/proxy (~2 hours, Pulkit)
-        - Website
+        - Website (DONE)
             - Forms for accepting proxy, port, and search bar
             - On submitting the form, it queries the cache (Sends a GET for the requested keywords)
-        - Proxy
+        - Proxy (DONE)
             - Handle GET to our proxy with query parameters
     - Set up search engine functionality

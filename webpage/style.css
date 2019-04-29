@@ -1,0 +1,19 @@
+html, body {
+    height: 100%;
+}
+
+.fill {
+    height: 100%;
+}
+
+.outer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#search {
+    text-align: center;
+}
+
+

@@ -1,0 +1,5 @@
+#!/bin/bash
+
+PROXY='localhost'
+
+./scripts/exe_proxy $PROXY $1 $2
