@@ -431,12 +431,25 @@ int handle_cache_query(int sockfd, int proxy, int last_read, Connection *connect
     query += strlen(QUERY);  // remove leading "query="
 
     // set it in the body (NEEDSWORK: temporary)
-    connection->response->body = query;
-    connection->response->body_length = connection->response->total_body_length
-        = strlen(query);
+   // connection->response->body = query;
+   // connection->response->body_length = connection->response->total_body_length
+   //     = strlen(query);
     
+    // TODO:
+    URLResults *results = NULL;
+    results = find_relevant_urls(query);
+    fprintf(stderr, "here\n");
+    if (results != NULL) {
+        fprintf(stderr, "relevant urls are %s\n", results->urls[0]);
+        connection->response->body = results->urls[0];
+        add_hdr(&(connection->response->hdrs), CONTENT_LENGTH, itoa_ap(strlen(results->urls[0])));
+    } else {
+        connection->response->body = query;
+        connection->response->body_length = connection->response->total_body_length
+            = strlen(query);
+        add_hdr(&(connection->response->hdrs), CONTENT_LENGTH, itoa_ap(strlen(query)));
+    }
     // set appropriate headers
-    add_hdr(&(connection->response->hdrs), CONTENT_LENGTH, itoa_ap(strlen(query)));
     add_hdr(&(connection->response->hdrs), "Access-Control-Allow-Origin", "*");
 
     // create and send response
