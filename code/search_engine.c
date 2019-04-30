@@ -192,6 +192,15 @@ int count_sort(WordCount *word1, WordCount *word2) {
 
    return word2->count - word1->count;
 }
+int tf_sort(URLTF_Table *t1, URLTF_Table *t2) {
+    /* compare a to b (cast a and b appropriately)
+    * return (int) -1 if (a < b)
+    * return (int)  0 if (a == b)
+    * return (int)  1 if (a > b)
+    */
+
+   return t2->tf - t1->tf;
+}
 
 
 void add_count_entry_to_keyword(Keyword *curr_keyword, CountEntry *count_entry) {
@@ -213,32 +222,64 @@ URLResults *find_relevant_urls(char *keywords) {
     int num_keywords;
     URLTF *single_keyword_results_list;
     URLTF *curr;
+    URLTF *all_relevant;
+    URLTF_Table *results = NULL;
+    int idx = 0;
+    int num_lists = 0;
 
     // Do the same text parsing as the body
     keywords = strip_content(keywords, strlen(keywords));
-    num_keywords = find_num_keywords(keywords);
+
+    // Making a copy of keywords because find_num_keywords uses strtok which changes the string
+    char copy[strlen(keywords)];
+    strcpy(copy, keywords);
+    num_keywords = find_num_keywords(copy);
+
+    // Each keyword will generate a list of URLs (URLTF)
+    URLTF *result_lists[num_keywords];
 
     fprintf(stderr, "number of keywords is %d\n", num_keywords);
+    fprintf(stderr, "keywords are %s\n", keywords);
+    // Go through each keyword one by one, generate the url list for each, and add the url list into results_list
 	curr_word = strtok(keywords, " ");
-
 	while (curr_word != NULL) {
 		fprintf(stderr, "keyword searching for is %s\n", curr_word);
 		single_keyword_results_list = find_relevant_urls_from_single_keyword(curr_word);
-		// Algorithm to aggregate the key words results
+		
+        // Add the result list from one keyword into the array of results
+        result_lists[idx] = single_keyword_results_list;
+        if (result_lists[idx] != NULL) {
+            num_lists++;
+        }
 
-
+        idx++;
 		curr_word = strtok(NULL, " ");
 	}
 
-    // For now, put it into urls
-    curr = single_keyword_results_list;
+    fprintf(stderr, "calculating relevant urls now\n");
+    // Algorithm to aggregate the key words results, giving more weight to those documents that contain multiple keywords
+    all_relevant = calculate_all_relevant(result_lists, num_lists);
+
+    // Sort the list so most relevant is on top and put it into URLTF_table results
+    sort_list_by_tf(&results, all_relevant);
+
+
+    // Put the first five URLs into final_results
     final_results = malloc(sizeof(URLResults));
     int i;
+    URLTF_Table *s;
 
-    for (i = 0; i < NUM_TOP_RESULTS && curr != NULL; i++) {
-        final_results->urls[i] = malloc(strlen(curr->url) + 1); // + 1 for null terminator
-        memcpy(final_results->urls[i], curr->url, strlen(curr->url));
-        final_results->urls[i][strlen(curr->url)] = '\0';
+    for(s = results, i = 0; s != NULL && i < NUM_TOP_RESULTS; s = s->hh.next, i++) {
+        fprintf(stderr, "tf %f: url %s\n", s->tf, s->url);
+        final_results->urls[i] = malloc(strlen(s->url) + 1); // + 1 for null terminator
+        memcpy(final_results->urls[i], s->url, strlen(s->url));
+        final_results->urls[i][strlen(s->url)] = '\0';
+    }
+
+    while (i < NUM_TOP_RESULTS) {
+        // If final results isn't fully populated, point urls[i] = NULL
+        final_results->urls[i] = NULL;
+        i++;
     }
 
     return final_results;
@@ -295,3 +336,158 @@ int find_num_keywords(char *keywords) {
 }
 
 
+URLTF *calculate_all_relevant(URLTF **result_lists, int num_lists) {
+    URLTF *inter = result_lists[0]; // Start with the first list
+    URLTF *not_inter = NULL;
+    URLTF *total = result_lists[0]; // Start with the first list
+
+    if (num_lists > 1) { // If only one list, then those are the only relevant urls
+        for (int i = 1; i < num_lists; i++) {
+            total = inter;
+            fprintf(stderr, "about to find inter\n");
+            inter = find_inter(total, result_lists[i]);
+            not_inter = find_diff(total, result_lists[i]);
+
+            // Add the not_inter list behind the inter list (inter becomes total list)
+            merge(&inter, not_inter);
+        }
+    }
+
+    return total;
+}
+
+URLTF *find_inter(URLTF *l1, URLTF *l2) {
+    // Create a hashtable of l1, and search through l2 to find entries of same URL
+    URLTF_Table *url_set = NULL; // The hashtable that acts as a set
+    URLTF_Table *url_table_entry;
+    URLTF *curr = l1;
+    URLTF *inter = NULL;
+    URLTF *new_entry = NULL;
+
+    // Place the urls into the set
+    while (curr != NULL) {
+        fprintf(stderr, "adding url to set %s\n", curr->url);
+        url_table_entry = malloc(sizeof(URLTF_Table));
+        url_table_entry->url = malloc(strlen(curr->url) + 1);
+        url_table_entry->tf = curr->tf;
+
+        memcpy(url_table_entry->url, curr->url, strlen(curr->url));
+        url_table_entry->url[strlen(curr->url)] = '\0';
+
+        HASH_ADD_KEYPTR(hh, url_set, url_table_entry->url, strlen(curr->url), url_table_entry);
+        curr = curr->next;
+    }
+
+    // Check for intersection of the set and list with O(1) lookup
+
+    curr = l2;
+    while (curr != NULL) {
+        HASH_FIND_STR(url_set, curr->url, url_table_entry);
+        fprintf(stderr, "currently trying to find %s in set\n",curr->url);
+        // If found match in set
+        if (url_table_entry != NULL) {
+            fprintf(stderr, "found match in set \n");
+            new_entry = malloc(sizeof(URLTF));
+            new_entry->url = malloc(strlen(curr->url) + 1);
+            new_entry->tf = (curr->tf * url_table_entry->tf) / 2; // New tf is the average
+            memcpy(new_entry->url, curr->url, strlen(curr->url));
+            new_entry->url[strlen(curr->url)] = '\0';
+            // Add to the inter list at the head
+            new_entry->next = inter;
+            inter = new_entry;
+        } 
+        curr = curr->next;
+    }
+
+    if (inter == NULL) {
+        fprintf(stderr, "inter is NULL\n");
+
+    } else {fprintf(stderr, "first url of found intersection is %s\n", inter->url);}
+    
+    return inter;
+}
+
+
+URLTF *find_diff(URLTF *l1, URLTF *l2) {
+    // Create a hashtable of l1, and search through l2 to find entries of same URL
+    URLTF_Table *url_set = NULL; // The hashtable that acts as a set
+    URLTF_Table *url_table_entry;
+    URLTF *curr = l1;
+    URLTF *diff = NULL;
+    URLTF *new_entry = NULL;
+
+    // Place the urls into the set
+    while (curr != NULL) {
+        url_table_entry = malloc(sizeof(URLTF_Table));
+        url_table_entry->url = malloc(strlen(curr->url) + 1);
+        url_table_entry->tf = curr->tf;
+
+        memcpy(url_table_entry->url, curr->url, strlen(curr->url));
+        url_table_entry->url[strlen(url_table_entry->url)] = '\0';
+
+        HASH_ADD_KEYPTR(hh, url_set, url_table_entry->url, strlen(url_table_entry->url), url_table_entry);
+        curr = curr->next;
+    }
+
+    // Check for intersection of the set and list with O(1) lookup
+
+    curr = l2;
+
+    while (curr != NULL) {
+        HASH_FIND_STR(url_set, curr->url, url_table_entry);
+
+        // If did not find match in set
+        if (url_table_entry == NULL) {
+            new_entry = malloc(sizeof(URLTF));
+            new_entry->url = malloc(strlen(curr->url) + 1);
+            new_entry->tf = curr->tf;
+            memcpy(new_entry->url, curr->url, strlen(curr->url));
+            new_entry->url[strlen(curr->url)] = '\0';
+            // Add to the inter list at the head
+            new_entry->next = diff;
+            diff = new_entry;
+        }
+        curr = curr->next;
+    }
+
+    return diff;
+}
+
+
+void merge(URLTF **inter, URLTF *not_inter) {
+    URLTF *curr = (*inter);
+
+    if ((*inter) == NULL && not_inter != NULL) {
+        (*inter) = not_inter;
+    } else if ((*inter) != NULL && not_inter == NULL) {
+
+    } else { // both are nonempty lists
+
+        while (curr->next != NULL) {
+            curr = curr->next;
+        }
+
+        curr->next = not_inter;
+    }
+
+}
+
+void sort_list_by_tf(URLTF_Table **results, URLTF *all_relevant) {
+    URLTF *curr = all_relevant;
+    URLTF_Table *url_table_entry;
+    // Put all the relevant entries into the results hashtable
+    while (curr != NULL) {
+        fprintf(stderr, "putting entries into results hashtable, %lu\n", strlen(curr->url));
+        url_table_entry = malloc(sizeof(URLTF_Table));
+        url_table_entry->url = malloc(strlen(curr->url) + 1);
+        url_table_entry->tf = curr->tf;
+
+        memcpy(url_table_entry->url, curr->url, strlen(curr->url));
+        url_table_entry->url[strlen(curr->url)] = '\0';
+        fprintf(stderr, "--------- ending length is %lu\n", strlen(url_table_entry->url));
+        HASH_ADD_KEYPTR(hh, (*results), url_table_entry->url, strlen(url_table_entry->url), url_table_entry);
+        curr = curr->next;
+    }
+
+    HASH_SORT((*results), tf_sort); // Sort by most common
+}
