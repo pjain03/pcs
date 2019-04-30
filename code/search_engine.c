@@ -287,7 +287,7 @@ URLResults *find_relevant_urls(char *keywords) {
 
 URLTF *find_relevant_urls_from_single_keyword(char *keyword) {
 	Keyword *found_keyword;
-	URLTF *results;
+	URLTF *results = NULL;
 	URLTF *curr = NULL;
 	CountEntry *entry;
 	int url_len;
@@ -477,7 +477,7 @@ void sort_list_by_tf(URLTF_Table **results, URLTF *all_relevant) {
     URLTF_Table *url_table_entry;
     // Put all the relevant entries into the results hashtable
     while (curr != NULL) {
-        fprintf(stderr, "putting entries into results hashtable, %lu\n", strlen(curr->url));
+        fprintf(stderr, "putting entries into results hashtable, %s\n", curr->url);
         url_table_entry = malloc(sizeof(URLTF_Table));
         url_table_entry->url = malloc(strlen(curr->url) + 1);
         url_table_entry->tf = curr->tf;
