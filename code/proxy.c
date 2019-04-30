@@ -438,12 +438,13 @@ int handle_cache_query(int sockfd, int proxy, int last_read, Connection *connect
     // TODO:
     URLResults *results = NULL;
     results = find_relevant_urls(query);
-    fprintf(stderr, "here\n");
+
     if (results != NULL) {
-        fprintf(stderr, "relevant urls are %s\n", results->urls[0]);
+        fprintf(stderr, "only returning one relevant url: %s\n", results->urls[0]);
+        fprintf(stderr, "strlen is %lu\n", strlen(results->urls[0]));
         connection->response->body = results->urls[0];
         add_hdr(&(connection->response->hdrs), CONTENT_LENGTH, itoa_ap(strlen(results->urls[0])));
-    } else {
+    } else { // just return the query for now
         connection->response->body = query;
         connection->response->body_length = connection->response->total_body_length
             = strlen(query);
@@ -451,12 +452,13 @@ int handle_cache_query(int sockfd, int proxy, int last_read, Connection *connect
     }
     // set appropriate headers
     add_hdr(&(connection->response->hdrs), "Access-Control-Allow-Origin", "*");
-
+fprintf(stderr, "finisih adding headers\n");
     // create and send response
     response_length = construct_response(connection->response, &response);
     last_read = write_to_socket(sockfd, response, response_length);
+    fprintf(stderr, "reseponse length is %d\n", response_length);
+    fprintf(stderr, "last_read is %d\n", last_read);
 
-    // return last_read;
     return last_read;
 }
 

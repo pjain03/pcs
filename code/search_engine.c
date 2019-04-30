@@ -205,6 +205,8 @@ void add_count_entry_to_keyword(Keyword *curr_keyword, CountEntry *count_entry) 
     curr->next = count_entry;
 }
 
+
+// Main entry point function
 URLResults *find_relevant_urls(char *keywords) {
 	URLResults *final_results;
 	char* curr_word;
@@ -234,8 +236,9 @@ URLResults *find_relevant_urls(char *keywords) {
     int i;
 
     for (i = 0; i < NUM_TOP_RESULTS && curr != NULL; i++) {
-        final_results->urls[i] = malloc(strlen(curr->url));
+        final_results->urls[i] = malloc(strlen(curr->url) + 1); // + 1 for null terminator
         memcpy(final_results->urls[i], curr->url, strlen(curr->url));
+        final_results->urls[i][strlen(curr->url)] = '\0';
     }
 
     return final_results;
@@ -259,9 +262,10 @@ URLTF *find_relevant_urls_from_single_keyword(char *keyword) {
 			curr = malloc(sizeof(URLTF)); 
 			curr->tf = found_keyword->count_entry_list->tf;
 			url_len = strlen(found_keyword->count_entry_list->cache_entry->url);
-			curr->url = malloc(url_len);
+			curr->url = malloc(url_len + 1); // + 1 for null terminator
 			memcpy(curr->url, found_keyword->count_entry_list->cache_entry->url, url_len);
-			curr->next = results;
+			curr->url[url_len] = '\0';
+            curr->next = results;
 			results = curr;
 			i++; 
 			fprintf(stderr, "keyword found from %s\n", curr->url);
