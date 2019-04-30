@@ -1,6 +1,17 @@
 // AUTHORS: Annie Chen and Pulkit Jain
 // PURPOSE: Scripts for the AP Cache Search Engine
 
+function deserialize_response(response) {
+    r = "<ul id=\"result-list\">";
+    r_txts = response.split('\0');
+    for (var i = 0; i < r_txts.length; i++) {
+        r_txt = r_txts[i];
+        r += "<li class=\"result_item\"><a href=\"" + r_txt + "\">" + r_txt + "</a></li>";
+    }
+    r += "</ul>";
+    return r;
+}
+
 function send_get_request() {
     url_txt = document.getElementsByName("url")[0].value;
     query_txt = document.getElementsByName("query")[0].value;
@@ -28,7 +39,7 @@ function send_get_request() {
             },
             success: function (response) {
                 $("#error").css("display", "none");
-                $("#results").html(response);
+                $("#results").html(deserialize_response(response));
                 $("#results").css("display", "flex");
             },
             failure: function (xhr, status) {

@@ -60,6 +60,14 @@ h3 {
     width: 100%;
 }
 
+#result-list {
+    list-style: none;
+}
+
+.result_item {
+
+}
+
 #error {
     display: none;
     width: 100%;
