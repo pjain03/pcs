@@ -1,5 +1,5 @@
 
-#ifndef SERACH_H
+#ifndef SEARCH_H
 #define SEARCH_H
 
 #include "ap_utilities.h"
@@ -56,4 +56,4 @@ int find_num_keywords(char *keywords);
 // split keyword on space
 
 
-#endif /* AP_H */
+#endif /* SEARCH_H */

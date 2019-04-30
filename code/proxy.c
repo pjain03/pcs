@@ -9,7 +9,6 @@
 //
 // Includes and Definitions
 //
-
 #include "search_engine.h"
 
 #define NUM_QUEUED_CONNECTIONS 5
@@ -28,10 +27,6 @@ char *Proxy_URL = NULL;
 int setup_server(int port_num);
 int handle_client(int client, int proxy, char *buffer, Connection **connection_list,
                   int *max_fd, fd_set *master);
-int handle_new_connection(int proxy);
-void add_select(int sockfd, int *max_fd, fd_set *master);
-void setup_get_server(int server, Connection *client_connection,
-                      Connection **connection_list);
 int handle_get_request(int sockfd, int proxy, int last_read, Connection *connection,
                        Connection **connection_list, int *max_fd, fd_set *master);
 int handle_connect_request(int sockfd, int proxy, int last_read, Connection *connection,
@@ -42,6 +37,10 @@ int handle_cache_query(int sockfd, int proxy, int last_read, Connection *connect
                        Connection **connection_list, int *max_fd, fd_set *master);
 int handle_get_response(int last_read, Connection *connection);
 int handle_connect_response(int last_read, Connection *connection);
+int serialize_results(URLResults *results, char **raw_ptr);
+void add_select(int sockfd, int *max_fd, fd_set *master);
+void setup_get_server(int server, Connection *client_connection,
+                      Connection **connection_list);
 void handle_activity(fd_set *master, fd_set *readfds, int *max_fd, int proxy,
                      char *buffer, Connection **connection_list);
 
@@ -431,19 +430,39 @@ int handle_cache_query(int sockfd, int proxy, int last_read, Connection *connect
     query += strlen(QUERY);  // remove leading "query="
 
     // set it in the body (NEEDSWORK: temporary)
-    connection->response->body = query;
-    connection->response->body_length = connection->response->total_body_length
-        = strlen(query);
+   // connection->response->body = query;
+   // connection->response->body_length = connection->response->total_body_length
+   //     = strlen(query);
     
+    // TODO:
+    URLResults *results = NULL;
+    results = find_relevant_urls(query);
+
+    if (results != NULL) {
+
+        // TODO: serialize and return URL results
+        connection->response->body = NULL;
+        connection->response->body_length = connection->response->total_body_length
+            = serialize_results(results, &(connection->response->body));
+        add_hdr(&(connection->response->hdrs), CONTENT_LENGTH,
+                itoa_ap(connection->response->body_length));
+    } else {
+        
+        // just return the query for now
+        connection->response->body = query;
+        connection->response->body_length = connection->response->total_body_length
+            = strlen(query);
+        add_hdr(&(connection->response->hdrs), CONTENT_LENGTH, itoa_ap(strlen(query)));
+    }
+
     // set appropriate headers
-    add_hdr(&(connection->response->hdrs), CONTENT_LENGTH, itoa_ap(strlen(query)));
     add_hdr(&(connection->response->hdrs), "Access-Control-Allow-Origin", "*");
 
     // create and send response
     response_length = construct_response(connection->response, &response);
+    fprintf(stderr, "%s\n", response);
     last_read = write_to_socket(sockfd, response, response_length);
 
-    // return last_read;
     return last_read;
 }
 
@@ -507,6 +526,30 @@ void add_select(int sockfd, int *max_fd, fd_set *master) {
     if (*max_fd < sockfd) {
         *max_fd = sockfd;
     }
+}
+
+
+int serialize_results(URLResults *results, char **raw_ptr) {
+    /* Serializes results and places it in the buffer provided, returns the
+     * length of the serialized output */
+
+    int result_length = 0, i = 0;
+    char *raw = NULL;
+
+    while (i < NUM_TOP_RESULTS && results->urls[i] != NULL) {
+        if ((raw = (char *) realloc(raw, result_length + strlen(results->urls[i]) + 1))
+                == NULL) {
+            error_out("Couldn't malloc!");
+        }
+        memcpy(raw + result_length, results->urls[i], strlen(results->urls[i]));
+        result_length += strlen(results->urls[i]) + 1;
+        raw[result_length - 1] = '\0';
+        i++;
+    }
+
+    *raw_ptr = raw;
+
+    return result_length;
 }
 
 

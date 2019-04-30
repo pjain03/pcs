@@ -1,4 +1,4 @@
-#!/bin/env python
+#!/bin/python
 
 import os
 import sys
@@ -7,7 +7,7 @@ import time
 
 #os.system
 port = sys.argv[1]
-proxy = "comp112-02.cs.tufts.edu"
+proxy = "localhost"
 url0 = "https://driftaway.coffee/how-to-remove-coffee-stains/"
 url1 = "http://www.cs.cmu.edu/~prs/bio.html"
 url2 = "https://www.google.com/"
