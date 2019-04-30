@@ -484,11 +484,22 @@ int handle_get_response(int last_read, Connection *connection) {
         display_response(connection->response);
 
         CacheObject *cache_entry = add_data_to_cache(connection->request->url, connection->response);
-                // set the keywords
+        // set the keywords
         extract_keywords(&(connection->response), cache_entry);
-        char str[] = "parsing";
-        find_relevant_urls(str);
-
+/*
+        // testing
+        char str[] = "parsing analysis";
+        URLResults *results = NULL;
+        results = find_relevant_urls(str);
+        if (results != NULL) {
+            for (int i = 0; i < NUM_TOP_RESULTS; i++) {
+                if (results->urls[i] != NULL) {
+                    fprintf(stderr, "URL: %s\n", results->urls[i]);
+                }
+            }
+          } else {
+            fprintf(stderr, "results is null\n");
+          } */
 
     }
 

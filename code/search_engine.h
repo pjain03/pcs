@@ -43,6 +43,11 @@ typedef struct URLTF { // URL and term frequency
 } URLTF;
 
 
+typedef struct URLTF_Table {
+    char *url;
+    float tf;
+    UT_hash_handle hh;         /* makes this structure hashable */
+} URLTF_Table;
 
 void extract_keywords(HTTPResponse **response, CacheObject *cache_entry);
 char *strip_content(char *data, int body_len);
@@ -53,7 +58,12 @@ void add_count_entry_to_keyword(Keyword *curr_keyword, CountEntry *count_entry);
 URLResults *find_relevant_urls(char *keywords);
 URLTF *find_relevant_urls_from_single_keyword(char *keyword);
 int find_num_keywords(char *keywords);
-// split keyword on space
+URLTF *calculate_all_relevant(URLTF **result_lists, int num_lists);
+URLTF *find_inter(URLTF *l1, URLTF *l2);
+URLTF *find_diff(URLTF *l1, URLTF *l2);
+void merge(URLTF **inter, URLTF *not_inter);
+void sort_list_by_tf(URLTF_Table **results, URLTF *all_relevant);
+int tf_sort(URLTF_Table *t1, URLTF_Table *t2);
 
 
 #endif /* SEARCH_H */
