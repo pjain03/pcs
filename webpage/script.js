@@ -1,13 +1,39 @@
 // AUTHORS: Annie Chen and Pulkit Jain
 // PURPOSE: Scripts for the AP Cache Search Engine
 
+function get_cached(url) {
+    $.get({
+        url: document.getElementsByName("url")[0].value,
+        data: {
+            get_cache: url
+        },
+        success: function (response) {
+            $("#error").css("display", "none");
+            $("results").css("display", "none");
+            $("#viewer").html(response);
+            $("#viewer").css("display", "block");
+        },
+        failure: function (xhr, status) {
+            $("#viewer").css("display", "none");
+            $("results").css("display", "none");
+            $("#error").css("display", "flex");
+        },
+        error: function (xhr, status) {
+            $("#viewer").css("display", "none");
+            $("#results").css("display", "none");
+            $("#error").css("display", "flex");
+        }
+    });
+    return false;
+}
+
 function get_result_item(r_txt) {
     return "<li class=\"result_item\"><a href=\"" + r_txt +
-           "\" target=\"_blank\">" + r_txt + "</a></li>"
+           "\" onclick=\"return get_cached('" + r_txt + "');\">" + r_txt +
+           "</a></li>";
 }
 
 function deserialize_response(response) {
-    console.log(response);
     if (response.length == 0) {
         return "No results found!";
     }
@@ -15,7 +41,9 @@ function deserialize_response(response) {
     r_txts = response.split('\0');
     for (var i = 0; i < r_txts.length; i++) {
         r_txt = r_txts[i];
-        r += get_result_item(r_txt);
+        if (r_txt != "") {
+            r += get_result_item(r_txt);
+        }
     }
     r += "</ul>";
     return r;
@@ -52,15 +80,18 @@ function send_get_request() {
             },
             success: function (response) {
                 $("#error").css("display", "none");
+                $("#viewer").css("display", "none");
                 $("#results").html(deserialize_response(response));
                 $("#results").css("display", "flex");
             },
             failure: function (xhr, status) {
                 $("#results").css("display", "none");
+                $("#viewer").css("display", "none");
                 $("#error").css("display", "flex");
             },
             error: function (xhr, status) {
                 $("#results").css("display", "none");
+                $("#viewer").css("display", "none");
                 $("#error").css("display", "flex");
             }
         });

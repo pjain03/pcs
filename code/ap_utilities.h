@@ -37,6 +37,7 @@
 #define CONNECT_RQ "CONNECT"
 #define OPTIONS_RQ "OPTIONS"
 #define AMPERSAND "&"
+#define GET_CACHE "get_cache="
 #define GET_RQ "GET"
 #define COLON ":"
 #define EMPTY "\0"

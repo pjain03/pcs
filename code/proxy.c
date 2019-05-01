@@ -33,8 +33,12 @@ int handle_connect_request(int sockfd, int proxy, int last_read, Connection *con
                            Connection **connection_list, int *max_fd, fd_set *master);
 int handle_options_request(int sockfd, int proxy, int last_read, Connection *connection,
                            Connection **connection_list, int *max_fd, fd_set *master);
+int handle_cache_request(int sockfd, int proxy, int last_read, Connection *connection,
+                         Connection **connection_list, int *max_fd, fd_set *master);
 int handle_cache_query(int sockfd, int proxy, int last_read, Connection *connection,
                        Connection **connection_list, int *max_fd, fd_set *master);
+int handle_cache_get(int sockfd, int proxy, int last_read, Connection *connection,
+                     Connection **connection_list, int *max_fd, fd_set *master);
 int handle_get_response(int last_read, Connection *connection);
 int handle_connect_response(int last_read, Connection *connection);
 int serialize_results(URLResults *results, char **raw_ptr);
@@ -222,9 +226,9 @@ int handle_client(int sockfd, int proxy, char *buffer, Connection **connection_l
                     // if we are the host then it is a query for the cache
                     if (strcmp(get_hdr_value(connection->request->hdrs, "Host"),
                             Proxy_URL) == 0) {
-                        last_read = handle_cache_query(sockfd, proxy, last_read,
-                                                       connection, connection_list,
-                                                       max_fd, master);
+                        last_read = handle_cache_request(sockfd, proxy, last_read,
+                                                         connection, connection_list,
+                                                         max_fd, master);
                     } else {
                         last_read = handle_get_request(sockfd, proxy, last_read,
                                                        connection, connection_list,
@@ -374,6 +378,33 @@ int handle_options_request(int sockfd, int proxy, int last_read, Connection *con
 }
 
 
+int handle_cache_request(int sockfd, int proxy, int last_read, Connection *connection,
+                         Connection **connection_list, int *max_fd, fd_set *master) {
+    /* Handles the different types of cache requests */
+
+    int is_query = strstr(connection->request->url, QUERY) != NULL;
+    int is_get = strstr(connection->request->url, GET_CACHE) != NULL;
+    int processed = 0;
+
+    if (is_query) {
+        // cache_query
+        last_read = handle_cache_query(sockfd, proxy, last_read, connection,
+                                       connection_list, max_fd, master);
+    }
+    if (is_get) {
+        // cache get
+        last_read = handle_cache_get(sockfd, proxy, last_read, connection,
+                                     connection_list, max_fd, master);
+    }
+    if (!(is_query || is_get)) {
+        // unsupported argument - drop requester
+        return 0;
+    }
+
+    return last_read;
+}
+
+
 int handle_cache_query(int sockfd, int proxy, int last_read, Connection *connection,
                        Connection **connection_list, int *max_fd, fd_set *master) {
     /* Handle query to the cache */
@@ -427,11 +458,6 @@ int handle_cache_query(int sockfd, int proxy, int last_read, Connection *connect
     query = curl_easy_unescape(curl, query, tmp_query_length, &query_length);
     curl_easy_cleanup(curl);
     query += strlen(QUERY);  // remove leading "query="
-
-    // set it in the body (NEEDSWORK: temporary)
-   // connection->response->body = query;
-   // connection->response->body_length = connection->response->total_body_length
-   //     = strlen(query);
     
     // TODO:
     URLResults *results = NULL;
@@ -439,23 +465,69 @@ int handle_cache_query(int sockfd, int proxy, int last_read, Connection *connect
 
     if (results != NULL) {
 
-        // TODO: serialize and return URL results
         connection->response->body = NULL;
         connection->response->body_length = connection->response->total_body_length
             = serialize_results(results, &(connection->response->body));
         add_hdr(&(connection->response->hdrs), CONTENT_LENGTH,
                 itoa_ap(connection->response->body_length));
     } else {
-        
-        // just return the query for now
-        connection->response->body = query;
-        connection->response->body_length = connection->response->total_body_length
-            = strlen(query);
-        add_hdr(&(connection->response->hdrs), CONTENT_LENGTH, itoa_ap(strlen(query)));
+        return 0;
     }
 
     // set appropriate headers
     add_hdr(&(connection->response->hdrs), "Access-Control-Allow-Origin", "*");
+
+    // create and send response
+    response_length = construct_response(connection->response, &response);
+    fprintf(stderr, "%s\n", response);
+    last_read = write_to_socket(sockfd, response, response_length);
+
+    return last_read;
+}
+
+
+int handle_cache_get(int sockfd, int proxy, int last_read, Connection *connection,
+                     Connection **connection_list, int *max_fd, fd_set *master) {
+    /* Handle get to the cache from the search engine */
+
+    CURL *curl = curl_easy_init();
+    char *response = NULL, *get = NULL, *tmp_get_start = NULL,
+         *tmp_get_end = NULL;
+    int response_length = 0, get_length = 0, tmp_get_length = 0;
+
+    // extract query
+    if ((tmp_get_start = strstr(connection->request->url, GET_CACHE))
+            == NULL) {
+        // no query string found
+        
+        error_declare("No get made!");
+        return -1;
+    }
+    if ((tmp_get_end = strstr(tmp_get_start, AMPERSAND)) != NULL) {
+        // ignore multiple query string arguments
+        tmp_get_length = tmp_get_end - tmp_get_start;
+        if ((get = (char *) malloc(tmp_get_length + 1)) == NULL) {
+            error_out("Couldn't malloc!");
+        }
+        memcpy(get, tmp_get_start, tmp_get_length);
+        get[tmp_get_length] = '\0';
+    } else {
+        // extract only get string
+        get = tmp_get_start;
+        get_length = strlen(tmp_get_start);
+    }
+
+    // clean the query
+    get = curl_easy_unescape(curl, get, tmp_get_length, &get_length);
+    curl_easy_cleanup(curl);
+    get += strlen(GET_CACHE);  // remove leading "get_cache="
+    
+    connection->response = get_data_from_cache(get);
+
+    // set appropriate headers
+    if (get_hdr_value(connection->response->hdrs, "Access-Control-Allow-Origin") == NULL) {
+        add_hdr(&(connection->response->hdrs), "Access-Control-Allow-Origin", "*");
+    }
 
     // create and send response
     response_length = construct_response(connection->response, &response);
