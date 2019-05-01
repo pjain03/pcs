@@ -419,7 +419,6 @@ int handle_cache_query(int sockfd, int proxy, int last_read, Connection *connect
         query[tmp_query_length] = '\0';
     } else {
         // extract only query string
-
         query = tmp_query_start;
         query_length = strlen(tmp_query_start);
     }
@@ -486,6 +485,12 @@ int handle_get_response(int last_read, Connection *connection) {
 
     if (connection->response->body_length == connection->response->total_body_length) {
         display_response(connection->response);
+        HTTPResponse *evicted_response = check_cache_capacity();
+        if (evicted_response != NULL) {
+            // An item was evicted - keywords need to be cleared out too
+            
+        }
+
 
         CacheObject *cache_entry = add_data_to_cache(connection->request->url, connection->response);
         // set the keywords

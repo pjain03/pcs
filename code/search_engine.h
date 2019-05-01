@@ -6,6 +6,7 @@
 #include "cache.h"
 
 #define NUM_TOP_RESULTS 5
+#define STOP_WORDS_LIST_SIZE 179
 
 typedef struct CountEntry {
     float tf; // Term frequency 
@@ -64,6 +65,9 @@ URLTF *find_diff(URLTF *l1, URLTF *l2);
 void merge(URLTF **inter, URLTF *not_inter);
 void sort_list_by_tf(URLTF_Table **results, URLTF *all_relevant);
 int tf_sort(URLTF_Table *t1, URLTF_Table *t2);
+void remove_keywords_from_keywords_table(HTTPResponse *response);
+void free_count_entry(Keyword *keyword);
+
 
 
 #endif /* SEARCH_H */
