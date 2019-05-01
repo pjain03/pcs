@@ -488,7 +488,7 @@ int handle_get_response(int last_read, Connection *connection) {
         HTTPResponse *evicted_response = check_cache_capacity();
         if (evicted_response != NULL) {
             // An item was evicted - keywords need to be cleared out too
-            
+            remove_keywords_from_keywords_table(evicted_response);
         }
 
 

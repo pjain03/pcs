@@ -16,7 +16,7 @@ void extract_keywords(HTTPResponse **response, CacheObject *cache_entry) {
 
     char *curr_word;
     StopWord *stop_words = create_stop_words_set();
-
+    
     // Stripping out any binary characters or non-alphabetical characters
     clean_body = strip_content((*response)->body, (*response)->body_length);
     fprintf(stderr, "%s", clean_body);
@@ -93,14 +93,12 @@ void extract_keywords(HTTPResponse **response, CacheObject *cache_entry) {
         }
     }
 
-
     // Free each word, then free hashtable
     HASH_ITER(hh, vocab, curr, temp) {
         free(curr->word);       // Free the word
         HASH_DEL(vocab, curr);  // Delete it (curr advances to next) 
         free(curr);             // Free the struct 
     }
-
 
     free(clean_body);
 }
@@ -119,6 +117,7 @@ char *strip_content(char *data, int body_len) {
     if ((new_data = (char *) malloc(body_len)) == NULL) {
         error_out("Couldn't malloc!");
     }
+    bzero(new_data, body_len);
 
     for (int i = 0; i < body_len; i++) {
         
@@ -148,6 +147,7 @@ char *strip_content(char *data, int body_len) {
     if ((stripped_data = (char *) malloc(len + 1)) == NULL) { // + 1 for null terminator
         error_out("Couldn't malloc!");
     }
+    bzero(stripped_data, len);
  
     memcpy(stripped_data, new_data, len);
     // Add null terminator to end
@@ -308,6 +308,8 @@ URLTF *find_relevant_urls_from_single_keyword(char *keyword) {
 		// Add entries, up to NUM_TOP_RESULTS, into url list
 		while(entry != NULL && i < NUM_TOP_RESULTS) {
 			// Add the entry into the head of the url list
+            fprintf(stderr, "tf is %f \n", entry->tf);
+            fprintf(stderr, "url is %s\n", entry->cache_entry->url);
 			curr = malloc(sizeof(URLTF)); 
 			curr->tf = entry->tf;
 			url_len = strlen(entry->cache_entry->url);
