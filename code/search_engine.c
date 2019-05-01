@@ -14,11 +14,15 @@ void extract_keywords(HTTPResponse **response, CacheObject *cache_entry) {
     WordCount *ptr = NULL;
     WordCount *temp = NULL;
 
+    char *body = malloc((*response)->body_length);
+    memcpy(body, (*response)->body, (*response)->body_length);
+
     char *curr_word;
     StopWord *stop_words = create_stop_words_set();
-    
+
+
     // Stripping out any binary characters or non-alphabetical characters
-    clean_body = strip_content((*response)->body, (*response)->body_length);
+    clean_body = strip_content(body, (*response)->body_length);
     fprintf(stderr, "%s", clean_body);
     // Get the first word
     curr_word = strtok(clean_body, " ");
