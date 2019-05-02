@@ -64,10 +64,6 @@ h3 {
     list-style: none;
 }
 
-.result_item {
-
-}
-
 #error {
     display: none;
     width: 100%;
@@ -78,6 +74,28 @@ h3 {
 
 #error_txt {
     color: red;
+}
+
+#viewer {
+    display: none;
+    font-family: sans-serif;
+    border-top: 1px solid #d3d3d3;
+    padding-top: 1%;
+}
+
+#viewer h3 {
+    color: purple;
+    font-weight: 100;
+}
+
+#viewer #url {
+    color: black;
+    font-weight: 100;
+}
+
+#content {
+    border: 1px solid #d3d3d3;
+    margin: 1%;
 }
 
 

@@ -9,21 +9,20 @@ void extract_keywords(HTTPResponse **response, CacheObject *cache_entry) {
     char *clean_body = NULL;
     int word_len;
     unsigned int num_words;
-    WordCount *vocab = NULL;    // Initialize hashtable 
+    WordCount *vocab = NULL;    // Initialize hashtable
     WordCount *curr = NULL;
     WordCount *ptr = NULL;
     WordCount *temp = NULL;
 
-    char *body = malloc((*response)->body_length);
+    char *body = (char *) malloc((*response)->body_length);
     memcpy(body, (*response)->body, (*response)->body_length);
 
     char *curr_word;
     StopWord *stop_words = create_stop_words_set();
 
-
     // Stripping out any binary characters or non-alphabetical characters
     clean_body = strip_content(body, (*response)->body_length);
-    fprintf(stderr, "%s", clean_body);
+    
     // Get the first word
     curr_word = strtok(clean_body, " ");
 
@@ -151,7 +150,7 @@ char *strip_content(char *data, int body_len) {
     if ((stripped_data = (char *) malloc(len + 1)) == NULL) { // + 1 for null terminator
         error_out("Couldn't malloc!");
     }
-    bzero(stripped_data, len);
+    bzero(stripped_data, len + 1);
  
     memcpy(stripped_data, new_data, len);
     // Add null terminator to end

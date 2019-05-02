@@ -34,9 +34,11 @@
 #define MAX_CONNECTIONS 10
 #define CONTENT_LENGTH "Content-Length"
 #define BUFFER_SIZE 2048
+#define TIMEOUT_INTERVAL 3
 #define CONNECT_RQ "CONNECT"
 #define OPTIONS_RQ "OPTIONS"
 #define AMPERSAND "&"
+#define GET_CACHE "get_cache="
 #define GET_RQ "GET"
 #define COLON ":"
 #define EMPTY "\0"

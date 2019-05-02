@@ -1,6 +1,40 @@
 // AUTHORS: Annie Chen and Pulkit Jain
 // PURPOSE: Scripts for the AP Cache Search Engine
 
+function get_cached(url) {
+    proxy = document.getElementsByName("url")[0].value;
+    $.get({
+        url: proxy,
+        data: {
+            get_cache: url
+        },
+        success: function (response) {
+            $("#error").css("display", "none");
+            $("results").css("display", "none");
+            $("#viewer #url").html(url);
+            $("#viewer #content").html(response);
+            $("#viewer").css("display", "block");
+        },
+        failure: function (xhr, status) {
+            $("#viewer").css("display", "none");
+            $("results").css("display", "none");
+            $("#error").css("display", "flex");
+        },
+        error: function (xhr, status) {
+            $("#viewer").css("display", "none");
+            $("#results").css("display", "none");
+            $("#error").css("display", "flex");
+        }
+    });
+    return false;
+}
+
+function get_result_item(r_txt) {
+    return "<li class=\"result_item\"><a href=\"" + r_txt +
+           "\" onclick=\"return get_cached('" + r_txt + "');\">" + r_txt +
+           "</a></li>";
+}
+
 function deserialize_response(response) {
     if (response.length == 0) {
         return "No results found!";
@@ -9,10 +43,25 @@ function deserialize_response(response) {
     r_txts = response.split('\0');
     for (var i = 0; i < r_txts.length; i++) {
         r_txt = r_txts[i];
-        r += "<li class=\"result_item\"><a href=\"" + r_txt + "\">" + r_txt + "</a></li>";
+        if (r_txt != "") {
+            r += get_result_item(r_txt);
+        }
     }
     r += "</ul>";
     return r;
+}
+
+function setup_result() {
+    $("#outer").css("justify-content", "flex-start");
+    $("#search-bar").css({
+        "width": "100%",
+        "padding-bottom": "1%",
+        "margin-bottom": "1%",
+        "border-bottom": "1px solid #d3d3d3",
+        "flex-direction": "row"
+    });
+    $("h1").css("margin", "0");
+    $("#heading").css("margin-right", "1%");
 }
 
 function send_get_request() {
@@ -25,16 +74,7 @@ function send_get_request() {
     if (query_txt == "") {
         alert("ABORT: Query was empty!");
     } else {
-        $("#outer").css("justify-content", "flex-start");
-        $("#search-bar").css({
-            "width": "100%",
-            "padding-bottom": "1%",
-            "margin-bottom": "1%",
-            "border-bottom": "1px solid #d3d3d3",
-            "flex-direction": "row"
-        });
-        $("h1").css("margin", "0");
-        $("#heading").css("margin-right", "1%");
+        setup_result();
         $.get({
             url: url_txt,
             data: {
@@ -42,15 +82,18 @@ function send_get_request() {
             },
             success: function (response) {
                 $("#error").css("display", "none");
+                $("#viewer").css("display", "none");
                 $("#results").html(deserialize_response(response));
                 $("#results").css("display", "flex");
             },
             failure: function (xhr, status) {
                 $("#results").css("display", "none");
+                $("#viewer").css("display", "none");
                 $("#error").css("display", "flex");
             },
             error: function (xhr, status) {
                 $("#results").css("display", "none");
+                $("#viewer").css("display", "none");
                 $("#error").css("display", "flex");
             }
         });
