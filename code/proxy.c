@@ -12,7 +12,6 @@
 #include "search_engine.h"
 
 #define NUM_QUEUED_CONNECTIONS 5
-#define TIMEOUT_INTERVAL 60
 
 
 //
@@ -112,6 +111,8 @@ int main(int argc, char **argv) {
             error_out("Select errored out!");
         } else if (n == 0) {
             error_declare("TODO: Handle Timeout!");
+            tv.tv_sec = TIMEOUT_INTERVAL;
+            tv.tv_usec = TIMEOUT_INTERVAL;
         } else {
             handle_activity(&master, &readfds, &max_fd, proxy, buffer, &connection_list);
         }
@@ -479,7 +480,7 @@ int handle_cache_query(int sockfd, int proxy, int last_read, Connection *connect
 
     // create and send response
     response_length = construct_response(connection->response, &response);
-    fprintf(stderr, "%s\n", response);
+    display_response(connection->response);
     last_read = write_to_socket(sockfd, response, response_length);
 
     return last_read;
@@ -531,7 +532,7 @@ int handle_cache_get(int sockfd, int proxy, int last_read, Connection *connectio
 
     // create and send response
     response_length = construct_response(connection->response, &response);
-    fprintf(stderr, "%s\n", response);
+    display_response(connection->response);
     last_read = write_to_socket(sockfd, response, response_length);
 
     return last_read;
@@ -541,18 +542,23 @@ int handle_cache_get(int sockfd, int proxy, int last_read, Connection *connectio
 int handle_get_response(int last_read, Connection *connection) {
     /* Handle the GET response */
 
-    int offset = connection->read_len - last_read;
     write_to_socket(connection->target_sockfd,
-                    connection->raw + offset, last_read);
+                    connection->raw, last_read);
     if (!connection->response) {
         if (!header_not_completed(connection->raw, connection->read_len)) {
             connection->response = parse_response(connection->read_len,
-                                                    connection->raw);
+                                                  connection->raw);
+            free(connection->raw);
+            connection->raw = NULL;
+            connection->read_len = 0;
         }
     } else {
         memcpy(connection->response->body + connection->response->body_length,
-                connection->raw + offset, last_read);
+                connection->raw, last_read);
         connection->response->body_length += last_read;
+        free(connection->raw);
+        connection->raw = NULL;
+        connection->read_len = 0;
     }
 
     if (connection->response->body_length == connection->response->total_body_length) {
@@ -563,25 +569,9 @@ int handle_get_response(int last_read, Connection *connection) {
             remove_keywords_from_keywords_table(evicted_response);
         }
 
-
         CacheObject *cache_entry = add_data_to_cache(connection->request->url, connection->response);
         // set the keywords
         extract_keywords(&(connection->response), cache_entry);
-/*
-        // testing
-        char str[] = "parsing analysis";
-        URLResults *results = NULL;
-        results = find_relevant_urls(str);
-        if (results != NULL) {
-            for (int i = 0; i < NUM_TOP_RESULTS; i++) {
-                if (results->urls[i] != NULL) {
-                    fprintf(stderr, "URL: %s\n", results->urls[i]);
-                }
-            }
-          } else {
-            fprintf(stderr, "results is null\n");
-          } */
-
     }
 
     return last_read;

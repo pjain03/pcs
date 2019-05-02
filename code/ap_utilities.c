@@ -60,6 +60,13 @@ int connect_to_server(char *hostname, int port_num) {
                 sizeof(serveraddr)) < 0) {
         error_declare("Couldn't connect to the server!");
     }
+
+    struct timeval tv;
+    tv.tv_sec = TIMEOUT_INTERVAL;
+    tv.tv_usec = 0;
+    if ((setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv))) < 0) {
+        error_out("Couldn't set timeout!");
+    }
     
     return sockfd;
 }
@@ -568,12 +575,12 @@ HTTPResponse *parse_response(int length, char *raw) {
     // set the body
     response->total_body_length = atoi(get_hdr_value(response->hdrs, CONTENT_LENGTH));
     printf("BODY_LEN: %d\n", response->total_body_length);
-    response->body = NULL;
-    if (length - offset) {
-        response->body = (char *) malloc(response->total_body_length);
-        memcpy(response->body, raw + length - offset, length - offset);
+    response->body = (char *) malloc(response->total_body_length + 1);
+    if (length - offset > 0) {
+        memcpy(response->body, raw, length - offset);
+        response->body_length = length - offset;
     }
-    response->body_length = length - offset;
+    response->body[response->total_body_length] = '\0';
 
     // set the fetch time
     response->time_fetched = time(NULL);
@@ -746,9 +753,16 @@ int accept_client(int proxy) {
     int sockfd;
     struct sockaddr_in address;
     socklen_t addr_len = sizeof(address);
+    struct timeval tv;
+    tv.tv_sec = TIMEOUT_INTERVAL;
+    tv.tv_usec = 0;
 
     if ((sockfd = accept(proxy, (struct sockaddr*) &address, &addr_len)) < 0) {
         error_declare("Server cannot accept incoming connections!");
+    } else {
+        if ((setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv))) < 0) {
+            error_out("Couldn't set timeout!");
+        }
     }
 
     return sockfd;

@@ -2,15 +2,17 @@
 // PURPOSE: Scripts for the AP Cache Search Engine
 
 function get_cached(url) {
+    proxy = document.getElementsByName("url")[0].value;
     $.get({
-        url: document.getElementsByName("url")[0].value,
+        url: proxy,
         data: {
             get_cache: url
         },
         success: function (response) {
             $("#error").css("display", "none");
             $("results").css("display", "none");
-            $("#viewer").html(response);
+            $("#viewer #url").html(url);
+            $("#viewer #content").html(response);
             $("#viewer").css("display", "block");
         },
         failure: function (xhr, status) {
