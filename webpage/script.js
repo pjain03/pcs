@@ -11,7 +11,7 @@ function get_cached(url) {
         success: function (response) {
             $("#error").css("display", "none");
             $("results").css("display", "none");
-            $("#viewer #url").html(url);
+            $("#viewer #url").html("<a href=\"" + url + "\">" + url + "</a>");
             $("#viewer #content").html(response);
             $("#viewer").css("display", "block");
         },

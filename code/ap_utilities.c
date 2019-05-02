@@ -60,13 +60,6 @@ int connect_to_server(char *hostname, int port_num) {
                 sizeof(serveraddr)) < 0) {
         error_declare("Couldn't connect to the server!");
     }
-
-    struct timeval tv;
-    tv.tv_sec = TIMEOUT_INTERVAL;
-    tv.tv_usec = 0;
-    if ((setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv))) < 0) {
-        error_out("Couldn't set timeout!");
-    }
     
     return sockfd;
 }
@@ -759,10 +752,6 @@ int accept_client(int proxy) {
 
     if ((sockfd = accept(proxy, (struct sockaddr*) &address, &addr_len)) < 0) {
         error_declare("Server cannot accept incoming connections!");
-    } else {
-        if ((setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv))) < 0) {
-            error_out("Couldn't set timeout!");
-        }
     }
 
     return sockfd;
