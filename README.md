@@ -36,3 +36,4 @@ Run the following commands:
         - Proxy (DONE)
             - Handle GET to our proxy with query parameters
     - Set up search engine functionality
+5. Don't double free raw!!!
