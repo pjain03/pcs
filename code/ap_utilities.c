@@ -256,7 +256,18 @@ void free_response(HTTPResponse *response) {
         if (response->body) {
             free(response->body);
             response->body = NULL;
+        } 
+        
+        for (int i = 0; i < NUM_KEYWORDS; i++) {
+            if (response->keywords[i] != NULL) {
+                // remove keywords from keywords table
+                free(response->keywords[i]);
+            }
         }
+
+
+
+        
 
         free(response);
         response = NULL;

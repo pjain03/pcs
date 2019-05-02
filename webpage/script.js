@@ -2,6 +2,9 @@
 // PURPOSE: Scripts for the AP Cache Search Engine
 
 function deserialize_response(response) {
+    if (response.length == 0) {
+        return "No results found!";
+    }
     r = "<ul id=\"result-list\">";
     r_txts = response.split('\0');
     for (var i = 0; i < r_txts.length; i++) {

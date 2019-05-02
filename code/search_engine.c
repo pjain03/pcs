@@ -14,11 +14,15 @@ void extract_keywords(HTTPResponse **response, CacheObject *cache_entry) {
     WordCount *ptr = NULL;
     WordCount *temp = NULL;
 
+    char *body = malloc((*response)->body_length);
+    memcpy(body, (*response)->body, (*response)->body_length);
+
     char *curr_word;
     StopWord *stop_words = create_stop_words_set();
 
+
     // Stripping out any binary characters or non-alphabetical characters
-    clean_body = strip_content((*response)->body, (*response)->body_length);
+    clean_body = strip_content(body, (*response)->body_length);
     fprintf(stderr, "%s", clean_body);
     // Get the first word
     curr_word = strtok(clean_body, " ");
@@ -52,8 +56,8 @@ void extract_keywords(HTTPResponse **response, CacheObject *cache_entry) {
         fprintf(stderr, "num words is %d\n", num_words);
     // Find top most common words in vocabulary
     HASH_SORT(vocab, count_sort); // Sort by most common
-    int i; 
-    for(ptr = vocab, i = 0; ptr != NULL && i < 5; ptr = (ptr->hh.next), i++) {
+    int i;  // I < 5 the 5 should be a macro
+    for(ptr = vocab, i = 0; ptr != NULL && i < NUM_KEYWORDS; ptr = (ptr->hh.next), i++) {
         Keyword *curr_keyword;
         CountEntry *count_entry = malloc(sizeof(CountEntry));
         // Normalize the count (term frequency) by dividing by number of unique words in the data = size of table
@@ -69,22 +73,29 @@ void extract_keywords(HTTPResponse **response, CacheObject *cache_entry) {
         if (curr_keyword == NULL) {
             // New keyword, so add an entry into the keywords table
             curr_keyword = malloc(sizeof(Keyword));
-            if ((curr_keyword->word = (char *)malloc(strlen(ptr->word))) == NULL) {
+            if ((curr_keyword->word = (char *)malloc(strlen(ptr->word) + 1)) == NULL) {
                 error_out("Couldn't malloc!");
             }
             memcpy(curr_keyword->word, ptr->word, strlen(ptr->word));
-
+            curr_keyword->word[strlen(ptr->word)] = '\0';
 
             curr_keyword->count_entry_list = count_entry;
 
             HASH_ADD_KEYPTR(hh, keywords_table, curr_keyword->word, strlen(curr_keyword->word), curr_keyword);
+            
+            if (((*response)->keywords[i] = (char *)malloc(strlen(ptr->word) + 1)) == NULL) {
+                error_out("Couldn't malloc!");
+            }
+            memcpy((*response)->keywords[i], ptr->word, strlen(ptr->word));
+            (*response)->keywords[i][strlen(ptr->word)] = '\0';
+
+
         } else {
             // Already used keyword, so add the cache entry into the linked list
-
+            fprintf(stderr, "Keyword already in the table, adding count entry\n");
             add_count_entry_to_keyword(curr_keyword, count_entry);
         }
     }
-
 
     // Free each word, then free hashtable
     HASH_ITER(hh, vocab, curr, temp) {
@@ -92,7 +103,6 @@ void extract_keywords(HTTPResponse **response, CacheObject *cache_entry) {
         HASH_DEL(vocab, curr);  // Delete it (curr advances to next) 
         free(curr);             // Free the struct 
     }
-
 
     free(clean_body);
 }
@@ -111,6 +121,7 @@ char *strip_content(char *data, int body_len) {
     if ((new_data = (char *) malloc(body_len)) == NULL) {
         error_out("Couldn't malloc!");
     }
+    bzero(new_data, body_len);
 
     for (int i = 0; i < body_len; i++) {
         
@@ -140,6 +151,7 @@ char *strip_content(char *data, int body_len) {
     if ((stripped_data = (char *) malloc(len + 1)) == NULL) { // + 1 for null terminator
         error_out("Couldn't malloc!");
     }
+    bzero(stripped_data, len);
  
     memcpy(stripped_data, new_data, len);
     // Add null terminator to end
@@ -287,7 +299,7 @@ URLResults *find_relevant_urls(char *keywords) {
 
 URLTF *find_relevant_urls_from_single_keyword(char *keyword) {
 	Keyword *found_keyword;
-	URLTF *results;
+	URLTF *results = NULL;
 	URLTF *curr = NULL;
 	CountEntry *entry;
 	int url_len;
@@ -300,11 +312,13 @@ URLTF *find_relevant_urls_from_single_keyword(char *keyword) {
 		// Add entries, up to NUM_TOP_RESULTS, into url list
 		while(entry != NULL && i < NUM_TOP_RESULTS) {
 			// Add the entry into the head of the url list
+            fprintf(stderr, "tf is %f \n", entry->tf);
+            fprintf(stderr, "url is %s\n", entry->cache_entry->url);
 			curr = malloc(sizeof(URLTF)); 
-			curr->tf = found_keyword->count_entry_list->tf;
-			url_len = strlen(found_keyword->count_entry_list->cache_entry->url);
+			curr->tf = entry->tf;
+			url_len = strlen(entry->cache_entry->url);
 			curr->url = malloc(url_len + 1); // + 1 for null terminator
-			memcpy(curr->url, found_keyword->count_entry_list->cache_entry->url, url_len);
+			memcpy(curr->url, entry->cache_entry->url, url_len);
 			curr->url[url_len] = '\0';
             curr->next = results;
 			results = curr;
@@ -477,7 +491,7 @@ void sort_list_by_tf(URLTF_Table **results, URLTF *all_relevant) {
     URLTF_Table *url_table_entry;
     // Put all the relevant entries into the results hashtable
     while (curr != NULL) {
-        fprintf(stderr, "putting entries into results hashtable, %lu\n", strlen(curr->url));
+        fprintf(stderr, "putting entries into results hashtable, %s\n", curr->url);
         url_table_entry = malloc(sizeof(URLTF_Table));
         url_table_entry->url = malloc(strlen(curr->url) + 1);
         url_table_entry->tf = curr->tf;
@@ -490,4 +504,29 @@ void sort_list_by_tf(URLTF_Table **results, URLTF *all_relevant) {
     }
 
     HASH_SORT((*results), tf_sort); // Sort by most common
+}
+
+void remove_keywords_from_keywords_table(HTTPResponse *response) {
+    Keyword *k;
+
+    for (int i = 0; i < NUM_KEYWORDS; i++) {
+        HASH_FIND_STR(keywords_table, response->keywords[i], k);
+        HASH_DEL(keywords_table, k);
+        // Free the items within the Keyword struct
+        free_count_entry(k);
+        free(k->word);
+        free(k);
+
+    }
+}
+
+void free_count_entry(Keyword *keyword) {
+    CountEntry *head = keyword->count_entry_list;
+    CountEntry *temp;
+
+    while(head != NULL) {
+        temp = head;
+        head = head->next;
+        free(temp);
+    }
 }
