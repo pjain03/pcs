@@ -13,6 +13,7 @@ void extract_keywords(HTTPResponse **response, CacheObject *cache_entry) {
     WordCount *curr = NULL;
     WordCount *ptr = NULL;
     WordCount *temp = NULL;
+    int keywords_added = 0;
 
     char *body = (char *) malloc((*response)->body_length);
     memcpy(body, (*response)->body, (*response)->body_length);
@@ -81,8 +82,8 @@ void extract_keywords(HTTPResponse **response, CacheObject *cache_entry) {
             curr_keyword->count_entry_list = count_entry;
 
             HASH_ADD_KEYPTR(hh, keywords_table, curr_keyword->word, strlen(curr_keyword->word), curr_keyword);
-            
-            if (((*response)->keywords[i] = (char *)malloc(strlen(ptr->word) + 1)) == NULL) {
+            keywords_added++;
+            if (((*response)->keywords[i] = (char *) malloc(strlen(ptr->word) + 1)) == NULL) {
                 error_out("Couldn't malloc!");
             }
             memcpy((*response)->keywords[i], ptr->word, strlen(ptr->word));
@@ -94,6 +95,11 @@ void extract_keywords(HTTPResponse **response, CacheObject *cache_entry) {
             fprintf(stderr, "Keyword already in the table, adding count entry\n");
             add_count_entry_to_keyword(curr_keyword, count_entry);
         }
+    }
+
+    if (keywords_added < NUM_KEYWORDS) {
+        (*response)->keywords[keywords_added] = NULL;
+        keywords_added++;
     }
 
     // Free each word, then free hashtable
@@ -506,15 +512,19 @@ void sort_list_by_tf(URLTF_Table **results, URLTF *all_relevant) {
 }
 
 void remove_keywords_from_keywords_table(HTTPResponse *response) {
-    Keyword *k;
+    Keyword *k = NULL;
 
-    for (int i = 0; i < NUM_KEYWORDS; i++) {
+    for (int i = 0; i < NUM_KEYWORDS && response->keywords[i] != NULL; i++) {
+        fprintf(stderr, "keyword trying to remove is %s\n", response->keywords[i]);
         HASH_FIND_STR(keywords_table, response->keywords[i], k);
-        HASH_DEL(keywords_table, k);
-        // Free the items within the Keyword struct
-        free_count_entry(k);
-        free(k->word);
-        free(k);
+        if (k) {
+            HASH_DEL(keywords_table, k);
+            // Free the items within the Keyword struct
+            free_count_entry(k);
+            free(k->word);
+            free(k);
+            k = NULL;
+        }
 
     }
 }

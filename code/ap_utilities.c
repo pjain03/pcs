@@ -41,11 +41,13 @@ int connect_to_server(char *hostname, int port_num) {
     // socket: create the socket
     if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         error_out("Couldn't open socket!");
+        return -1;
     }
 
     // gethostbyname: get the server's DNS entry
     if ((server = gethostbyname(hostname)) == NULL) {
-        error_out("Couldn't get host!");
+        error_declare("Couldn't get host!");
+        return -1;
     }
 
     // build the server's Internet address
@@ -59,13 +61,7 @@ int connect_to_server(char *hostname, int port_num) {
     if (connect(sockfd, (const struct sockaddr*) &serveraddr,
                 sizeof(serveraddr)) < 0) {
         error_declare("Couldn't connect to the server!");
-    }
-
-    struct timeval tv;
-    tv.tv_sec = TIMEOUT_INTERVAL;
-    tv.tv_usec = 0;
-    if ((setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv))) < 0) {
-        error_out("Couldn't set timeout!");
+        return -1;
     }
     
     return sockfd;
@@ -573,6 +569,7 @@ HTTPResponse *parse_response(int length, char *raw) {
     }
 
     // set the body
+    printf("%s\n", raw);
     response->total_body_length = atoi(get_hdr_value(response->hdrs, CONTENT_LENGTH));
     printf("BODY_LEN: %d\n", response->total_body_length);
     response->body = (char *) malloc(response->total_body_length + 1);
@@ -759,10 +756,6 @@ int accept_client(int proxy) {
 
     if ((sockfd = accept(proxy, (struct sockaddr*) &address, &addr_len)) < 0) {
         error_declare("Server cannot accept incoming connections!");
-    } else {
-        if ((setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv))) < 0) {
-            error_out("Couldn't set timeout!");
-        }
     }
 
     return sockfd;
