@@ -569,9 +569,7 @@ HTTPResponse *parse_response(int length, char *raw) {
     }
 
     // set the body
-    printf("%s\n", raw);
     response->total_body_length = atoi(get_hdr_value(response->hdrs, CONTENT_LENGTH));
-    printf("BODY_LEN: %d\n", response->total_body_length);
     response->body = (char *) malloc(response->total_body_length + 1);
     if (length - offset > 0) {
         memcpy(response->body, raw, length - offset);
@@ -724,7 +722,6 @@ int read_sockfd(int sockfd, char *buffer, Connection *connection) {
     bzero(buffer, BUFFER_SIZE);
 
     if ((last_read = read(sockfd, buffer, BUFFER_SIZE)) < 0) {
-        printf("sockfd: %d ", sockfd);
         error_declare("Couldn't read from client socket!");
         return -1;
     }
@@ -772,8 +769,6 @@ int add_client(int proxy, Connection **connection_list) {
     } else {
         n = add_client_connection(n, connection_list);
     }
-    
-    printf("Accepted client %d\n", n);
 
     return n;
 }
@@ -790,8 +785,6 @@ int add_server(int proxy, int client, HTTPRequest *request,
     } else {
         n = add_server_connection(n, client, request, connection_list);
     }
-    
-    printf("Added server %d\n", n);
 
     return n;
 }
@@ -864,7 +857,6 @@ void remove_connection(int sockfd, fd_set *master, Connection **connection_list)
             FD_CLR(connection->target_sockfd, master);
             close(connection->target_sockfd);
             connection->request = NULL;  // so we don't double free this pointer
-            printf("Removing %d\n", connection->target_sockfd);
         }
 
         // Now we can remove the intended connection safely
@@ -872,7 +864,6 @@ void remove_connection(int sockfd, fd_set *master, Connection **connection_list)
         clear_connection(connection);
         FD_CLR(sockfd, master);
         close(sockfd);
-        printf("Removing %d\n", sockfd);
     }
 }
 

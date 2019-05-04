@@ -10,7 +10,7 @@ void init_cache(char *eviction) {
 
     cache_log = fopen("cache.log", "w");
     if (cache_log == NULL) {
-        fprintf(stderr, "Could not create cache logging file\n");
+        // fprintf(stderr, "Could not create cache logging file\n");
     }
     eviction_policy = eviction;
     fprintf(cache_log, "Eviction policy: %s\n\n", eviction);
@@ -164,10 +164,10 @@ CacheObject *random_evict() {
     count = HASH_COUNT(cache);
     srand(time(0)); // Use current time as seed for random generator 
     int n = rand() % count;
-    fprintf(stderr, "--- RANDOM IS %d", n);
+    // fprintf(stderr, "--- RANDOM IS %d", n);
     for (curr = cache; curr != NULL; curr = curr->hh.next) {
         if (n > 0) {
-            fprintf(stderr, "changing\n");
+            // fprintf(stderr, "changing\n");
             random = curr;
         } 
         n--;

@@ -101,7 +101,6 @@ int main(int argc, char **argv) {
     max_fd = proxy;
     tv.tv_sec = TIMEOUT_INTERVAL;
     tv.tv_usec = TIMEOUT_INTERVAL;
-    printf("PROXY: %d\n", proxy);
 
     // start waiting for clients to connect
     while (1) {
@@ -181,7 +180,7 @@ void handle_activity(fd_set *master, fd_set *readfds, int *max_fd, int proxy,
                     // cannot accept clients so we log it in accept_client.
                     add_select(n, max_fd, master);
                 } else {
-                    printf("Client wasn't accepted??\n");
+                    error_declare("Client wasn't accepted??\n");
                 }
             } else {
                 if ((n = handle_client(i, proxy, buffer, connection_list,
@@ -194,7 +193,6 @@ void handle_activity(fd_set *master, fd_set *readfds, int *max_fd, int proxy,
             }
         }
     }
-    printf("--\n");
 }
 
 
@@ -210,7 +208,6 @@ int handle_client(int sockfd, int proxy, char *buffer, Connection **connection_l
 
     // read from the sockfd
     last_read = read_sockfd(sockfd, buffer, connection);
-    printf("Reading %d bytes from %d\n", last_read, sockfd);
 
     // parse read from the sockfd
     if (last_read > 0) {
@@ -220,7 +217,7 @@ int handle_client(int sockfd, int proxy, char *buffer, Connection **connection_l
             if (!header_not_completed(connection->raw, connection->read_len)) {
 
                 connection->request = parse_request(connection->read_len, connection->raw);
-                display_request(connection->request);
+                // display_request(connection->request);
 
                 if (connection->request->method == GET) {
 
@@ -370,7 +367,7 @@ int handle_options_request(int sockfd, int proxy, int last_read, Connection *con
         connection->response->time_fetched = time(NULL);
         response_length = construct_response(connection->response, &response);
         last_read = write_to_socket(sockfd, response, response_length);
-        display_response(connection->response);
+        // display_response(connection->response);
     }
 
     free_request(connection->request);
@@ -480,7 +477,7 @@ int handle_cache_query(int sockfd, int proxy, int last_read, Connection *connect
 
     // create and send response
     response_length = construct_response(connection->response, &response);
-    display_response(connection->response);
+    // display_response(connection->response);
     last_read = write_to_socket(sockfd, response, response_length);
 
     return last_read;
@@ -532,7 +529,7 @@ int handle_cache_get(int sockfd, int proxy, int last_read, Connection *connectio
 
     // create and send response
     response_length = construct_response(connection->response, &response);
-    display_response(connection->response);
+    // display_response(connection->response);
     last_read = write_to_socket(sockfd, response, response_length);
 
     return last_read;
@@ -562,7 +559,7 @@ int handle_get_response(int last_read, Connection *connection) {
     }
 
     if (connection->response->body_length == connection->response->total_body_length) {
-        display_response(connection->response);
+        // display_response(connection->response);
         HTTPResponse *evicted_response = check_cache_capacity();
         if (evicted_response != NULL) {
             // An item was evicted - keywords need to be cleared out too

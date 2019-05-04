@@ -53,7 +53,6 @@ void extract_keywords(HTTPResponse **response, CacheObject *cache_entry) {
 
     
     num_words = HASH_COUNT(vocab); // Number of unique words
-        fprintf(stderr, "num words is %d\n", num_words);
     // Find top most common words in vocabulary
     HASH_SORT(vocab, count_sort); // Sort by most common
     int i;  // I < 5 the 5 should be a macro
@@ -64,10 +63,6 @@ void extract_keywords(HTTPResponse **response, CacheObject *cache_entry) {
         count_entry->tf = (float) ptr->count / (float) num_words;
         count_entry->cache_entry = cache_entry;
         count_entry->next = NULL;
-        fprintf(stderr, "keyword is %s\n", ptr->word);
-        fprintf(stderr, "count is %d\n", ptr->count);
-        fprintf(stderr, "adding a tf of %f\n", count_entry->tf);
-        fprintf(stderr, "linking to cache entry %s\n", count_entry->cache_entry->url);
         // Find keyword in the keywords table
         HASH_FIND_STR(keywords_table, ptr->word, curr_keyword);
         if (curr_keyword == NULL) {
@@ -92,7 +87,6 @@ void extract_keywords(HTTPResponse **response, CacheObject *cache_entry) {
 
         } else {
             // Already used keyword, so add the cache entry into the linked list
-            fprintf(stderr, "Keyword already in the table, adding count entry\n");
             add_count_entry_to_keyword(curr_keyword, count_entry);
         }
     }
@@ -255,12 +249,9 @@ URLResults *find_relevant_urls(char *keywords) {
     // Each keyword will generate a list of URLs (URLTF)
     URLTF *result_lists[num_keywords];
 
-    fprintf(stderr, "number of keywords is %d\n", num_keywords);
-    fprintf(stderr, "keywords are %s\n", keywords);
     // Go through each keyword one by one, generate the url list for each, and add the url list into results_list
 	curr_word = strtok(keywords, " ");
 	while (curr_word != NULL) {
-		fprintf(stderr, "keyword searching for is %s\n", curr_word);
 		single_keyword_results_list = find_relevant_urls_from_single_keyword(curr_word);
 		
         // Add the result list from one keyword into the array of results
@@ -272,8 +263,6 @@ URLResults *find_relevant_urls(char *keywords) {
         idx++;
 		curr_word = strtok(NULL, " ");
 	}
-
-    fprintf(stderr, "calculating relevant urls now\n");
     // Algorithm to aggregate the key words results, giving more weight to those documents that contain multiple keywords
     all_relevant = calculate_all_relevant(result_lists, num_lists);
 
@@ -287,7 +276,6 @@ URLResults *find_relevant_urls(char *keywords) {
     URLTF_Table *s;
 
     for(s = results, i = 0; s != NULL && i < NUM_TOP_RESULTS; s = s->hh.next, i++) {
-        fprintf(stderr, "tf %f: url %s\n", s->tf, s->url);
         final_results->urls[i] = malloc(strlen(s->url) + 1); // + 1 for null terminator
         memcpy(final_results->urls[i], s->url, strlen(s->url));
         final_results->urls[i][strlen(s->url)] = '\0';
@@ -312,13 +300,10 @@ URLTF *find_relevant_urls_from_single_keyword(char *keyword) {
 	int i = 0;
 
 	if (found_keyword != NULL) {
-		fprintf(stderr, "Found keyword in keywords_table\n");
 		entry = found_keyword->count_entry_list;
 		// Add entries, up to NUM_TOP_RESULTS, into url list
 		while(entry != NULL && i < NUM_TOP_RESULTS) {
 			// Add the entry into the head of the url list
-            fprintf(stderr, "tf is %f \n", entry->tf);
-            fprintf(stderr, "url is %s\n", entry->cache_entry->url);
 			curr = malloc(sizeof(URLTF)); 
 			curr->tf = entry->tf;
 			url_len = strlen(entry->cache_entry->url);
@@ -327,9 +312,7 @@ URLTF *find_relevant_urls_from_single_keyword(char *keyword) {
 			curr->url[url_len] = '\0';
             curr->next = results;
 			results = curr;
-			i++; 
-			fprintf(stderr, "keyword found from %s\n", curr->url);
-			fprintf(stderr, "with a tf of %f\n", curr->tf);
+			i++;
 			entry = entry->next;
 		}
 	} else {
@@ -363,7 +346,6 @@ URLTF *calculate_all_relevant(URLTF **result_lists, int num_lists) {
     if (num_lists > 1) { // If only one list, then those are the only relevant urls
         for (int i = 1; i < num_lists; i++) {
             total = inter;
-            fprintf(stderr, "about to find inter\n");
             inter = find_inter(total, result_lists[i]);
             not_inter = find_diff(total, result_lists[i]);
 
@@ -385,7 +367,6 @@ URLTF *find_inter(URLTF *l1, URLTF *l2) {
 
     // Place the urls into the set
     while (curr != NULL) {
-        fprintf(stderr, "adding url to set %s\n", curr->url);
         url_table_entry = malloc(sizeof(URLTF_Table));
         url_table_entry->url = malloc(strlen(curr->url) + 1);
         url_table_entry->tf = curr->tf;
@@ -402,10 +383,8 @@ URLTF *find_inter(URLTF *l1, URLTF *l2) {
     curr = l2;
     while (curr != NULL) {
         HASH_FIND_STR(url_set, curr->url, url_table_entry);
-        fprintf(stderr, "currently trying to find %s in set\n",curr->url);
         // If found match in set
         if (url_table_entry != NULL) {
-            fprintf(stderr, "found match in set \n");
             new_entry = malloc(sizeof(URLTF));
             new_entry->url = malloc(strlen(curr->url) + 1);
             new_entry->tf = (curr->tf * url_table_entry->tf) / 2; // New tf is the average
@@ -418,10 +397,7 @@ URLTF *find_inter(URLTF *l1, URLTF *l2) {
         curr = curr->next;
     }
 
-    if (inter == NULL) {
-        fprintf(stderr, "inter is NULL\n");
-
-    } else {fprintf(stderr, "first url of found intersection is %s\n", inter->url);}
+    if (inter == NULL) {} else {}
     
     return inter;
 }
@@ -496,14 +472,12 @@ void sort_list_by_tf(URLTF_Table **results, URLTF *all_relevant) {
     URLTF_Table *url_table_entry;
     // Put all the relevant entries into the results hashtable
     while (curr != NULL) {
-        fprintf(stderr, "putting entries into results hashtable, %s\n", curr->url);
         url_table_entry = malloc(sizeof(URLTF_Table));
         url_table_entry->url = malloc(strlen(curr->url) + 1);
         url_table_entry->tf = curr->tf;
 
         memcpy(url_table_entry->url, curr->url, strlen(curr->url));
         url_table_entry->url[strlen(curr->url)] = '\0';
-        fprintf(stderr, "--------- ending length is %lu\n", strlen(url_table_entry->url));
         HASH_ADD_KEYPTR(hh, (*results), url_table_entry->url, strlen(url_table_entry->url), url_table_entry);
         curr = curr->next;
     }
@@ -515,7 +489,6 @@ void remove_keywords_from_keywords_table(HTTPResponse *response) {
     Keyword *k = NULL;
 
     for (int i = 0; i < NUM_KEYWORDS && response->keywords[i] != NULL; i++) {
-        fprintf(stderr, "keyword trying to remove is %s\n", response->keywords[i]);
         HASH_FIND_STR(keywords_table, response->keywords[i], k);
         if (k) {
             HASH_DEL(keywords_table, k);
