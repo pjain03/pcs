@@ -249,10 +249,8 @@ int handle_client(int sockfd, int proxy, char *buffer, Connection **connection_l
                 }
 
                 // clear out buffer
-                if (connection->raw) {
-                    free(connection->raw);
-                    connection->raw = NULL;
-                }
+                free(connection->raw);
+                connection->raw = NULL;
                 connection->read_len = 0;
             }
         } else {
@@ -550,20 +548,16 @@ int handle_get_response(int last_read, Connection *connection) {
         if (!header_not_completed(connection->raw, connection->read_len)) {
             connection->response = parse_response(connection->read_len,
                                                   connection->raw);
-            if (connection->raw) {
-                free(connection->raw);
-                connection->raw = NULL;
-            }
+            free(connection->raw);
+            connection->raw = NULL;
             connection->read_len = 0;
         }
     } else {
         memcpy(connection->response->body + connection->response->body_length,
                 connection->raw, last_read);
         connection->response->body_length += last_read;
-        if (connection->raw) {
-            free(connection->raw);
-            connection->raw = NULL;
-        }
+        free(connection->raw);
+        connection->raw = NULL;
         connection->read_len = 0;
     }
 
@@ -595,10 +589,8 @@ int handle_connect_response(int last_read, Connection *connection) {
     }
 
     // clear out buffer
-    if (connection->raw) {
-        free(connection->raw);
-        connection->raw = NULL;
-    }
+    free(connection->raw);
+    connection->raw = NULL;
     connection->read_len = 0;
 
     return last_read;

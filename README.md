@@ -44,10 +44,5 @@ Run the following commands:
 
 1. NOTE: in our implementation we assume that no header will be formatted such that the lines in the header end with a LF followed by a CR. Lines may end with LF or CR or CRLF but not LFCR
 2. NOTE: In our HTTPRequest and HTTPResponse we terminate all char* fields with \0 except the body field. The body field contains the data of a message and that shouldn't be tampered with because the body itself could contain a \0 character. We can use strlen on every field other than the body. This is why we store the body's length as a field in our Request and Response objects.
-<<<<<<< HEAD
 3. NOTE: As of now, we cannot handle requests that do not have content length as a header field. One way to handle this in the future is if content length is not available, then keep reading from the socket until we get a read of 0 bytes, in which we can assume the server has finished sending all the data. 
-
-4. TODO: Stress testing/scalability
-
-5. Don't double free raw!!!
-
+4. TODO: Stress testing/scalabilitygit
