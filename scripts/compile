@@ -1,4 +1,4 @@
 #!/bin/bash
 
-gcc -g ./code/cache.c ./code/ap_utilities.c ./code/proxy.c -lnsl -o ./scripts/exe_proxy
-gcc -g ./code/ap_utilities.c ./code/client.c -lnsl -o ./scripts/exe_client
+gcc -g ./code/search_engine.c ./code/cache.c ./code/ap_utilities.c ./code/proxy.c -lcurl -o ./scripts/exe_proxy
+gcc -g ./code/ap_utilities.c ./code/client.c -lcurl -o ./scripts/exe_client

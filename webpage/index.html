@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>AP Cache Search Engine</title>
+        <link rel="icon" href="/favicon.ico">
+        <link rel="stylesheet" type="text/css" href="style.css">
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    </head>
+    <body>
+        <div class="fill" id="outer">
+            <div id="search-bar">
+                <div id="heading">
+                    <h1>AP Cache Search Engine</h1>
+                </div>
+                <form id="search">
+                    <input type="text" name="url" placeholder="Proxy URL..."/>
+                    <input type="text" name="query" placeholder="Search our cache..."/>
+                    <button type="button" id="submit">Submit</button>
+                </form>
+            </div>
+            <div id="results"></div>
+            <div id="error">
+                <h3><span id="error_txt">ERROR:</span> Couldn't query the cache</h3>
+                <ul>
+                    <li>Please check the proxy URL</li>
+                    <li>Please check if the proxy is running</li>
+                    <li>Please contact us!</li>
+                </ul>
+            </div>
+            <div id="viewer">
+                <h3>PREVIEW: <span id="url"></span></h3>
+                <div id="content"></div>
+            </div>
+        </div>
+        <script src="script.js"></script>
+    </body>
+</html>

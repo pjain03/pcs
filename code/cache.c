@@ -37,9 +37,39 @@ HTTPResponse *get_data_from_cache(char *url) {
     return NULL; 
 }
 
+HTTPResponse *check_cache_capacity() {
+    CacheObject *eviction_item = NULL;
 
-void add_data_to_cache(char *url, HTTPResponse *response) {
+    // Returns the HTTPResponse if eviction is needed (i.e. cache is full)
+    // Returns NULL if cache is not full
+    if (HASH_COUNT(cache) >= MAX_CACHE_SIZE) { // Cache is full, must evict something 
+            // TODO: look for stale items first?
+            if (eviction_policy == NULL) {
+                eviction_item = lru_evict(); // LRU default
+            } else {
+              if (strcmp(eviction_policy, "lru") == 0) {
+                    eviction_item = lru_evict();
+                } else if (strcmp(eviction_policy, "mru") == 0) {
+                    eviction_item = mru_evict();
+                } else if (strcmp(eviction_policy, "random") == 0) {
+                    eviction_item = random_evict();
+                } else { // LRU default
+                    eviction_item = lru_evict();
+                }              
+            }
+    }
+
+    if (eviction_item != NULL) {
+        return eviction_item->response;
+    }
+
+    return NULL;
+}
+
+
+CacheObject *add_data_to_cache(char *url, HTTPResponse *response) {
     CacheObject *curr = NULL;
+    CacheObject *eviction_item;
     time_t s = time(NULL);
     struct tm* current_time = localtime(&s); 
 
@@ -49,16 +79,21 @@ void add_data_to_cache(char *url, HTTPResponse *response) {
         if (HASH_COUNT(cache) >= MAX_CACHE_SIZE) { // Cache is full, must evict something 
             // TODO: look for stale items first?
             if (eviction_policy == NULL) {
-                lru_evict(); // LRU default
+                eviction_item = lru_evict(); // LRU default
+                evict(eviction_item);
             } else {
               if (strcmp(eviction_policy, "lru") == 0) {
-                    lru_evict();
+                    eviction_item = lru_evict();
+                    evict(eviction_item);
                 } else if (strcmp(eviction_policy, "mru") == 0) {
-                    mru_evict();
+                    eviction_item = mru_evict();
+                    evict(eviction_item);
                 } else if (strcmp(eviction_policy, "random") == 0) {
-                    random_evict();
+                    eviction_item = random_evict();
+                    evict(eviction_item);
                 } else { // LRU default
-                    lru_evict();
+                    eviction_item = lru_evict();
+                    evict(eviction_item);
                 }              
             }
         }
@@ -75,9 +110,11 @@ void add_data_to_cache(char *url, HTTPResponse *response) {
         HASH_ADD_KEYPTR(hh, cache, curr->url, strlen(curr->url), curr);
 
     }
+
+    return curr;
 }
 
-void lru_evict() {
+CacheObject *lru_evict() {
     CacheObject *curr, *lru, *tmp;
     time_t s = time(NULL);
     struct tm* current_time = localtime(&s); 
@@ -92,21 +129,12 @@ void lru_evict() {
             lru = curr;
         }        
     } 
-   
 
-    fprintf(cache_log, "%02d:%02d:%02d EVICT %s \n", current_time->tm_hour, 
-           current_time->tm_min, 
-           current_time->tm_sec, lru->url);
-    fflush(cache_log);
-    HASH_DEL(cache, lru);
-    free_response(lru->response);
-    free(lru);   
+    return lru;
 }
 
-void mru_evict() {
+CacheObject *mru_evict() {
     CacheObject *curr, *mru, *tmp;
-    time_t s = time(NULL);
-    struct tm* current_time = localtime(&s); 
 
     // Set the first object to the first entry in cache
     HASH_ITER(hh, cache, mru, tmp) {
@@ -118,18 +146,11 @@ void mru_evict() {
             mru = curr;
         }        
     } 
-   
 
-    fprintf(cache_log, "%02d:%02d:%02d EVICT %s \n", current_time->tm_hour, 
-           current_time->tm_min, 
-           current_time->tm_sec, mru->url);
-    fflush(cache_log);
-    HASH_DEL(cache, mru);
-    free_response(mru->response);
-    free(mru);   
+    return mru;
 }
 
-void random_evict() {
+CacheObject *random_evict() {
     CacheObject *curr, *random, *tmp;
     time_t s = time(NULL);
     struct tm* current_time = localtime(&s); 
@@ -151,15 +172,21 @@ void random_evict() {
         } 
         n--;
     } 
-   
+    
+    return random;
+}
+
+void evict(CacheObject *item) {
+    time_t s = time(NULL);
+    struct tm* current_time = localtime(&s); 
 
     fprintf(cache_log, "%02d:%02d:%02d EVICT %s \n", current_time->tm_hour, 
            current_time->tm_min, 
-           current_time->tm_sec, random->url);
+           current_time->tm_sec, item->url);
     fflush(cache_log);
-    HASH_DEL(cache, random);
-    free_response(random->response);
-    free(random);   
+    HASH_DEL(cache, item);
+    free_response(item->response);
+    free(item);   
 }
 
 void destroy_cache() {

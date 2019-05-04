@@ -1,0 +1,102 @@
+html, body {
+    height: 100%;
+}
+
+input {
+    margin-right: 10px;
+    flex: 100%;
+}
+
+input:focus, button:focus {
+    outline: none;
+}
+
+h3 {
+    margin: 0;
+}
+
+.fill {
+    height: 100%;
+    margin: 1%;
+}
+
+#outer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+}
+
+#search-bar {
+    display: flex;
+    flex-direction: column;
+}
+
+#heading h1 {
+    color: purple;
+    font-weight: 100;
+    font-family: sans-serif;
+}
+
+#search {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#submit {
+    background-color: #d3d3d3;
+    color: grey;
+    border-radius: 10%;
+}
+
+#submit:hover {
+    background-color: #dcdcdc;
+    color: black;
+    border: 1px solid grey;
+}
+
+#results {
+    width: 100%;
+}
+
+#result-list {
+    list-style: none;
+}
+
+#error {
+    display: none;
+    width: 100%;
+    flex-direction: column;
+    font-family: sans-serif;
+    font-weight: 100;
+}
+
+#error_txt {
+    color: red;
+}
+
+#viewer {
+    display: none;
+    font-family: sans-serif;
+    border-top: 1px solid #d3d3d3;
+    padding-top: 10px;
+    margin-top: 10px;
+}
+
+#viewer h3 {
+    color: purple;
+    font-weight: 100;
+}
+
+#viewer #url {
+    color: black;
+    font-weight: 100;
+}
+
+#content {
+    border: 1px solid #d3d3d3;
+    margin: 1%;
+}
+
+

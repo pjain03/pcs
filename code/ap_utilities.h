@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <curl/curl.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include "uthash/src/uthash.h"
@@ -33,11 +34,16 @@
 #define MAX_CONNECTIONS 10
 #define CONTENT_LENGTH "Content-Length"
 #define BUFFER_SIZE 2048
+#define TIMEOUT_INTERVAL 3
 #define CONNECT_RQ "CONNECT"
+#define OPTIONS_RQ "OPTIONS"
+#define AMPERSAND "&"
+#define GET_CACHE "get_cache="
 #define GET_RQ "GET"
 #define COLON ":"
 #define EMPTY "\0"
 #define CRLF2 "\r\n\r\n"
+#define QUERY "query="
 #define CRLF "\r\n"
 #define CRCR "\r\r"
 #define LFLF "\n\n"
@@ -46,7 +52,7 @@
 #define OK " 200 Connection established"
 #define CR "\r"
 #define LF "\n"
-
+#define NUM_KEYWORDS 10
 
 //
 // Data Structures
@@ -55,6 +61,7 @@ typedef enum HTTPMethod {
     /* HTTP Methods we support */
     GET,
     CONNECT,
+    OPTIONS, 
     UNSUPPORTED
 } HTTPMethod;
 
@@ -86,6 +93,7 @@ typedef struct HTTPResponse {
     int body_length;
     int total_body_length;
     char *body;
+    char *keywords[NUM_KEYWORDS]; 
     time_t time_fetched;
 } HTTPResponse;
 
@@ -100,6 +108,7 @@ typedef struct Connection {
     HTTPResponse *response;
 	UT_hash_handle hh;
 } Connection;
+
 
 
 //
@@ -125,17 +134,20 @@ int read_all(int sockfd, char **raw);
 int read_hdr(int sockfd, char **raw);
 int read_sockfd(int sockfd, char *buffer, Connection *connection);
 int header_not_completed(char *raw, int raw_len);
+void add_hdr(HTTPHeader **hdr, char *key, char *value);
+char *get_hdr_value(HTTPHeader *hdrs, const char *name);
+char *itoa_ap(int x);
 
 void free_hdr(HTTPHeader *hdr);
 void free_request(HTTPRequest *request);
 void free_response(HTTPResponse *response);
 void display_request(HTTPRequest *request);
 void display_response(HTTPResponse *response);
-char *get_hdr_value(HTTPHeader *hdrs, const char *name);
 HTTPHeader *parse_headers(int *offset, char **raw_ptr);
 HTTPRequest *parse_request(int length, char *raw);
 HTTPResponse *parse_response(int length, char *raw);
 int construct_response(HTTPResponse *response, char **raw);
+
 
 #endif /* AP_H */
 

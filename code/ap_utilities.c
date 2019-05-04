@@ -41,11 +41,13 @@ int connect_to_server(char *hostname, int port_num) {
     // socket: create the socket
     if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         error_out("Couldn't open socket!");
+        return -1;
     }
 
     // gethostbyname: get the server's DNS entry
     if ((server = gethostbyname(hostname)) == NULL) {
-        error_out("Couldn't get host!");
+        error_declare("Couldn't get host!");
+        return -1;
     }
 
     // build the server's Internet address
@@ -59,6 +61,7 @@ int connect_to_server(char *hostname, int port_num) {
     if (connect(sockfd, (const struct sockaddr*) &serveraddr,
                 sizeof(serveraddr)) < 0) {
         error_declare("Couldn't connect to the server!");
+        return -1;
     }
     
     return sockfd;
@@ -256,7 +259,19 @@ void free_response(HTTPResponse *response) {
         if (response->body) {
             free(response->body);
             response->body = NULL;
+        } 
+        
+        for (int i = 0; i < NUM_KEYWORDS; i++) {
+            if (response->keywords[i] != NULL) {
+                // remove keywords from keywords table
+                free(response->keywords[i]);
+            }
         }
+
+
+
+        
+
         free(response);
         response = NULL;
     }
@@ -305,7 +320,7 @@ void display_response(HTTPResponse *response) {
         // Not printing out message body, clogging up terminal
         printf("Message Body:");
         if (response->body_length) {
-            printf("\n%d\n\n", response->total_body_length);
+            printf("\n%s\n\n", response->body);
         } else {
             printf(" EMPTY\n\n"); 
         }
@@ -412,7 +427,10 @@ HTTPRequest *parse_request(int length, char *raw) {
         request->method = GET;
     } else if (strncmp(raw, CONNECT_RQ, strlen(CONNECT_RQ)) == 0) {
         request->method = CONNECT;
-    } else {
+    } else if (strncmp(raw, OPTIONS_RQ, strlen(OPTIONS_RQ)) == 0) {
+        request->method = OPTIONS;
+    }
+    else {
         request->method = UNSUPPORTED;
     }
     raw += method_length + 1;
@@ -551,18 +569,19 @@ HTTPResponse *parse_response(int length, char *raw) {
     }
 
     // set the body
-    char *blen = get_hdr_value(response->hdrs, CONTENT_LENGTH);
-    response->total_body_length = atoi(blen);
+    printf("%s\n", raw);
+    response->total_body_length = atoi(get_hdr_value(response->hdrs, CONTENT_LENGTH));
     printf("BODY_LEN: %d\n", response->total_body_length);
-    response->body = NULL;
-    if (length - offset) {
-        response->body = (char *) malloc(response->total_body_length);
-        memcpy(response->body, raw + length - offset, length - offset);
+    response->body = (char *) malloc(response->total_body_length + 1);
+    if (length - offset > 0) {
+        memcpy(response->body, raw, length - offset);
+        response->body_length = length - offset;
     }
-    response->body_length = length - offset;
+    response->body[response->total_body_length] = '\0';
 
     // set the fetch time
     response->time_fetched = time(NULL);
+
 
     return response;
 }
@@ -659,9 +678,9 @@ int construct_response(HTTPResponse *response, char **raw_ptr) {
     // add age to header
     int age = time(NULL) - response->time_fetched;
     int name_length = strlen(AGE);
-    int value_length = snprintf( NULL, 0, "%d", age) + 1;
+    int value_length = snprintf( NULL, 0, "%d", age);
     char age_string[value_length];
-    snprintf(age_string, value_length, "%d", age);
+    sprintf(age_string, "%d", age);
     if ((raw = (char *) realloc(raw, response_length + name_length + 2 +
                                 value_length + 2 * crlf_length)) == NULL) {
         free_response(response);
@@ -731,6 +750,9 @@ int accept_client(int proxy) {
     int sockfd;
     struct sockaddr_in address;
     socklen_t addr_len = sizeof(address);
+    struct timeval tv;
+    tv.tv_sec = TIMEOUT_INTERVAL;
+    tv.tv_usec = 0;
 
     if ((sockfd = accept(proxy, (struct sockaddr*) &address, &addr_len)) < 0) {
         error_declare("Server cannot accept incoming connections!");
@@ -885,6 +907,46 @@ void clear_connection(Connection *connection) {
         free(connection);
         connection = NULL;
     }
+}
+
+
+void add_hdr(HTTPHeader **hdr, char *key, char *value) {
+    /* Add a header to the HTTPHeader linked list */
+
+    HTTPHeader *new_node;
+    if ((new_node = (HTTPHeader *) malloc(sizeof(HTTPHeader))) == NULL) {
+        error_out("Malloc failed!");
+    }
+    new_node->name = key;
+    new_node->value = value;
+    new_node->next = NULL;
+
+    HTTPHeader *node = *hdr;
+    if (node != NULL) {
+        while (node->next != NULL) {
+            node = node->next;
+        }
+        node->next = new_node;
+    } else {
+        *hdr = new_node;
+    }
+}
+
+
+char *itoa_ap(int x) {
+    /* Converts the given integer to a char* without all the hassle of memory
+     * management */
+
+    char *str_x = NULL;
+    int length = 0;
+    
+    length = snprintf(NULL, 0, "%d", x);
+    if ((str_x = (char *) malloc(length)) == NULL) {
+        error_out("Couldn't malloc!");
+    }
+    sprintf(str_x, "%d", x);
+
+    return str_x;
 }
 
 
