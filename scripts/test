@@ -17,13 +17,7 @@ url3 = "http://www.edginet.org/techie/website/http.html"
 url4 = "http://www.arcanedomain.com/Noahhead.jpg"
 url5 = "www.cs.tufts.edu/comp/160/"
 
-#Test 0: Connect
-#os.system("curl -x " + proxy + ":" + port + " " + url0 + " > out.html")
-#os.system("curl " + url0 + " > real.html")
-#os.system("diff real.html out.html")
-#os.system("rm real.html out.html")
 
-#sys.exit()
 
 #Test 1: Text Based Files
 os.system("curl -s " + url1 + " > real")
@@ -87,5 +81,10 @@ os.system("rm temp")
 os.system("curl -x " + proxy + ":" + port + " " + url0 + "> ours")
 os.system("curl " + url0 + "> real")
 os.system("diff ours real")
-os.system("rm ours real")
 
+if (os.system("diff real ours") == 0):
+    print ("--------- TEST 5 (CONNECT diff) PASSED --------")
+else:
+    print ("--------- TEST 5 (CONNECT diff) FAILED --------")
+
+os.system("rm ours real")
