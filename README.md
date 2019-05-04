@@ -26,9 +26,6 @@ Performance (e.g., latency of small transfers, throughput of large transfers); s
 
 
 
-
-
-
 ## Reflections:
 
 ### Annie:

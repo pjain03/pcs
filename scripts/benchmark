@@ -112,9 +112,9 @@ def restart_line():
 # Running latency benchmarks
 print("Running benchmark tests for latency...")
 print("Note : All results will be printed at the end\n")
-#runSmallLatency()
-#runLargeLatency()
-#calcThroughputAndPrintResults()
+runSmallLatency()
+runLargeLatency()
+calcThroughputAndPrintResults()
 
 
 #Scalability (e.g., how many requests per second, number of concurrent clients, etc)
@@ -125,19 +125,19 @@ def make_connection():
 	os.system("./scripts/exe_client localhost " + port)
 
 
-while (1):
-	current_requests += 10
-	print("Testing: {}".format(current_requests))
-	errored_out = False
-	pool = Pool(current_requests)
-	results = [pool.apply_async(make_connection, []) for i in range(current_requests)]
-	print(str(current_requests) + " " + [result.get(timeout=TIMEOUT) for result in results])
-	pool.terminate()
-	pool.join()
+# while (1):
+# 	current_requests += 10
+# 	print("Testing: {}".format(current_requests))
+# 	errored_out = False
+# 	pool = Pool(current_requests)
+# 	results = [pool.apply_async(make_connection, []) for i in range(current_requests)]
+# 	print(str(current_requests) + " " + [result.get(timeout=TIMEOUT) for result in results])
+# 	pool.terminate()
+# 	pool.join()
 
-	if errored_out:
-		break
-# os.system("rm ours* real*")
-if errored_out:
-	os.system("rm diff*")
+# 	if errored_out:
+# 		break
+# # os.system("rm ours* real*")
+# if errored_out:
+# 	os.system("rm diff*")
 
