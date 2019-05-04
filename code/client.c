@@ -17,6 +17,7 @@
 //
 char *con = "CONNECT www.google.com:443 HTTP/1.1\r\nHost: www.google.com:443\r\nProxy-Connection: Keep-Alive\r\n\r\n";
 char *get = "GET www.google.com:443 HTTP/1.1\r\nHost: www.google.com:443\r\n\r\n";
+char *sca = "GET /index.html HTTP/1.1\r\nHost: /\r\n\r\n";
 
 
 //
@@ -46,17 +47,14 @@ int main(int argc, char **argv) {
     port_num = atoi(argv[2]);
     server = connect_to_server(hostname, port_num);
 
-    char x;
-    x = fgetc(stdin);
-
-    // handle CONNECT
-    write_to_socket(server, con, strlen(con));
-    read(server, buffer, BUFFER_SIZE);
-    printf("%s", buffer);
-    bzero(buffer, BUFFER_SIZE);
+    // // handle CONNECT
+    // write_to_socket(server, con, strlen(con));
+    // read(server, buffer, BUFFER_SIZE);
+    // printf("%s", buffer);
+    // bzero(buffer, BUFFER_SIZE);
 
     // start communication
-    write_to_socket(server, get, strlen(get));
+    write_to_socket(server, sca, strlen(sca));
     read(server, buffer, BUFFER_SIZE);
     printf("READ %s\n", buffer);
     bzero(buffer, BUFFER_SIZE);
