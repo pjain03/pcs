@@ -1,9 +1,8 @@
 # COMP112: Networks, Final Project
+### Proxy Cache Search-Engine
 
 ## Overview: 
-For our COMP112 Networks class final project, we implemented a HTTP high performance proxy with the goal of increasing performance when the user searches for the same content, as well as providing an interface for a user to query the proxy cache via related keywords. The proxy can handle multiple clients concurrently, and supports GET, CONNECT, OPTIONS methods, though only the GET method responses will be stored in the cache. In other words, only HTTP websites will be cached, and not HTTPS. If a HTTPS request was sent to our proxy, the proxy will make a new connection to the server and retrieve the data and pass it back to the client, in a cut through technique. The implemented search engine has a search bar to search the proxy's cache by keyword(s). The search engine will return a list of URLs that have data with the same keyword(s) as the query. The user can then click on a URL they wish to see, and the cached data will be sent to the web interface as a preview of the actual webpage. 
-
-Github: https://github.com/pjain03/comp112_final_project/tree/master
+For our COMP112 Networks class final project, we implemented a HTTP high-performance proxy with the goal of increasing performance when the user searches for the same content, as well as providing an interface for a user to query the proxy cache via related keywords. The proxy can handle multiple clients concurrently, and supports GET, CONNECT, OPTIONS methods, though only the GET method responses will be stored in the cache. In other words, only HTTP websites will be cached, and not HTTPS. If a HTTPS request was sent to our proxy, the proxy will make a new connection to the server and retrieve the data and pass it back to the client, in a cut through technique. The implemented search engine has a search bar to search the proxy's cache by keyword(s). The search engine will return a list of URLs that have data with the same keyword(s) as the query. The user can then click on a URL they wish to see, and the cached data will be sent to the web interface as a preview of the actual webpage.
 
 ## Design:
     - proxy.c: Holds the main code to run the proxy in a select loop
@@ -19,11 +18,6 @@ Github: https://github.com/pjain03/comp112_final_project/tree/master
     - testing scripts:
         - test: This file contains a python script that tests the functional correctness of the proxy. This means comparing the results returned from our proxy with results returned directly from the server, and making sure there is no difference in results returned.
         - benchmark: This file holds the python script that runs latency and scalability benchmarks for the proxy. The results are printed out to standard output. The latency tests calculate the average latency of small cached transfers, average latency of large uncached transfers, and throughput of each. The scalability test makes multiple connections to the proxy until the proxy can no longer handle the more connections. Results for these are described below.
-
-
-## Evaluation:
-Performance (e.g., latency of small transfers, throughput of large transfers); scalability (e.g., how many requests per second, number of concurrent clients, etc), any other experimental evaluation that makes sense for your project.
-
 
 
 ## Reflections:
